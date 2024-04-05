@@ -1,0 +1,179 @@
+{% extends "KauffmanLabApp/navbar.html" %}
+<!DOCTYPE html>
+<html>
+<head>
+    {% load static %}
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    {% block title %}Sample Input Page{% endblock %}
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+{% block content %}
+<div>
+    <h2>Sample Entry Form</h2>
+    <hr>
+    <form method="post" action="{% url 'submit_sample' %}">
+        {% csrf_token %}
+        <label for="entry_type" class="form-label">Entry Type</label>
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="entry_type" id="single_entry" value="single" checked>
+            <label class="form-check-label" for="single_entry">
+                Single Entry
+            </label>
+        </div>
+
+        <div class="form-check mb-3">
+            <input class="form-check-input" type="radio" name="entry_type" id="batch_entry" value="batch">
+            <label class="form-check-label" for="batch_entry">
+                Batch Entry
+            </label>
+        </div>
+
+        <div class="input-group mb-3">
+            <label class="input-group-text" for="user_id">User</label>
+            <select class="form-select" id="user_id" name="user_id" required>
+                <option value="" disabled selected >Choose one</option>
+                {% for user_id in user_ids %}
+                    <option value="{{ user_id }}">{{ user_id }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="input-group mb-3">
+            <label class="input-group-text" for="sample_type">Sample Type</label>
+            <select class="form-select" id="sample_type" name="sample_type" required>
+                <option value="" disabled selected >Choose one</option>
+                {% for sample_type in sample_types %}
+                    <option value="{{ sample_type }}">{{ sample_type }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="material_type" class="form-label">Material Type</label>
+            <input class="form-control" type="text" id="material_type" name="material_type" placeholder="Material Type" aria-label="default input example" required>
+        </div>
+
+        <div id="single_entry_form">
+            <div class="mb-3">
+                <label for="tube_id" class="form-label">Tube ID</label>
+                <input class="form-control" type="text" id="tube_id" name="tube_id" placeholder="eg. if 24040.EH1.GT006 then enter 006 or 6" aria-label="default input example">
+            </div>
+        </div>
+
+        {% comment %} <div id="batch_entry_form" style="display:none;"> {% endcomment %}
+        <div id="batch_entry_form">
+            <div class="mb-3">
+                <label for="tube_id_start" class="form-label">Tube ID Start</label>
+                <input class="form-control" type="text" id="tube_id_start" name="tube_id_start" placeholder="eg. if 24040.EH1.GT006 then enter 006 or 6" aria-label="default input example">
+            </div>
+            <div class="mb-3">
+                <label for="tube_id_end" class="form-label">Tube ID End</label>
+                <input class="form-control" type="text" id="tube_id_end" name="tube_id_end" placeholder="eg. if 24040.EH1.GT006 then enter 006 or 6" aria-label="default input example">
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="lab_pg_no" class="form-label">Lab Page Number</label>
+            <input class="form-control" type="text" id="lab_pg_no" name="lab_pg_no" placeholder="Lab Page Number" aria-label="default input example">
+        </div>
+
+        <div class="mb-3">
+            <label for="label_note" class="form-label">Label Note</label>
+            <input class="form-control" type="text" id="label_note" name="label_note" placeholder="Label Note" aria-label="default input example">
+        </div>
+
+        <div class="mb-3">
+            <label for="parent_name" class="form-label">Parent Name</label>
+            <input class="form-control" type="text" id="parent_name" name="parent_name" placeholder="Parent Name" aria-label="default input example">
+        </div>
+
+        <div class="mb-3">
+            <label for="source_id" class="form-label">Source ID</label>
+            <input class="form-control" type="text" id="source_id" name="source_id" placeholder="Source ID" aria-label="default input example">
+        </div>
+
+        <div class="mb-3">
+            <label for="digitalnb_ref" class="form-label">Digital Notebook Reference</label>
+            <input class="form-control" type="text" id="digitalnb_ref" name="digitalnb_ref" placeholder="Digital Notebook Reference" aria-label="default input example">
+        </div>
+
+        <div class="mb-3">
+            <label for="original_label" class="form-label">Original Label</label>
+            <input class="form-control" type="text" id="original_label" name="original_label" placeholder="Original Label" aria-label="default input example">
+        </div>
+
+        <div class="mb-3">
+            <label for="comments" class="form-label">Comments</label>
+            <textarea class="form-control" id="comments" name="comments" rows="3"></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Submit</button>
+
+    </form>
+    <br><br>
+</div>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var singleEntryForm = document.getElementById("single_entry_form");
+        var batchEntryForm = document.getElementById("batch_entry_form");
+        var singleEntryRadio = document.getElementById("single_entry");
+        var batchEntryRadio = document.getElementById("batch_entry");
+        var tubeIdStartInput = document.getElementById("tube_id_start");
+        var tubeIdEndInput = document.getElementById("tube_id_end");
+        var tubeIdInput = document.getElementById("tube_id");
+
+        var tubeIdLabel = document.querySelector("label[for='tube_id']");
+        var tubeIdStartLabel = document.querySelector("label[for='tube_id_start']");
+        var tubeIdEndLabel = document.querySelector("label[for='tube_id_end']");
+        
+        function BatchFields() {
+            tubeIdInput.style.display = "none";
+            tubeIdLabel.style.display = "none";
+            tubeIdStartInput.style.display = "block";
+            tubeIdStartLabel.style.display = "block";
+            tubeIdEndInput.style.display = "block";
+            tubeIdEndLabel.style.display = "block";
+            tubeIdInput.removeAttribute("required");
+            tubeIdStartInput.setAttribute("required", "required");
+            tubeIdEndInput.setAttribute("required", "required");
+        }
+
+        function SingleField() {
+            tubeIdInput.style.display = "block";
+            tubeIdLabel.style.display = "block";
+            tubeIdStartInput.style.display = "none";
+            tubeIdStartLabel.style.display = "none";
+            tubeIdEndInput.style.display = "none";
+            tubeIdEndLabel.style.display = "none";
+            tubeIdInput.setAttribute("required", "required");
+            tubeIdStartInput.removeAttribute("required");
+            tubeIdEndInput.removeAttribute("required"); 
+        }
+
+        // Hide batch fields and show single field initially
+        SingleField();
+
+        // Trigger change event on radio buttons based on default value
+        if (singleEntryRadio.checked) {
+            singleEntryRadio.dispatchEvent(new Event('change'));
+        } else if (batchEntryRadio.checked) {
+            batchEntryRadio.dispatchEvent(new Event('change'));
+        }
+
+        // Event listener for singleEntryRadio
+        singleEntryRadio.addEventListener("change", function() {
+            SingleField();  
+        });
+
+        // Event listener for batchEntryRadio
+        batchEntryRadio.addEventListener("change", function() {
+            BatchFields();
+        });
+    });
+</script>
+{% endblock %}
+</body>
+</html>

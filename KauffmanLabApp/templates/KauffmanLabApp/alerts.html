@@ -1,0 +1,23 @@
+{% comment %} {% extends "KauffmanLabApp/navbar.html" %} {% endcomment %}
+<!DOCTYPE html>
+<html>
+    <head>
+        {% load static %}
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        {% block title %}Alert!{% endblock %}
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+    <body>
+        {% comment %} {% block content %} {% endcomment %}
+        <div class="alert-container">
+            {% if alert_type and alert_msg %}
+            <div class="alert alert-{{ alert_type }}" role="alert">
+                {{ alert_msg }}
+            </div>
+            {% endif %}
+        </div>
+        {% comment %} {% endblock %} {% endcomment %}
+    </body>
+</html>
