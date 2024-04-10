@@ -10,8 +10,10 @@ from django.contrib.auth.decorators import login_required
 from .models import UserProfile, Sample, Sample_Types
 from .tables import SampleTable
 from .filters import SampleFilter
-from .forms import SampleForm, RegisterUserForm
+from .forms import SampleForm, RegisterUserForm, ExcelUploadForm
 import csv
+import pandas as pd
+
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.pdfgen import canvas
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
@@ -61,13 +63,30 @@ def user_register(request):
     if request.method == "POST":
         form = RegisterUserForm(request.POST)
         if form.is_valid():
-            form.save()
-            username = form.cleaned_data['username']
-            password = form.cleaned_data['password1']
-            user = authenticate(user = username, password = password)
-            login(request, user)
-            messages.success(request, "Registeration Successful!")
-            return redirect('/')
+            user = form.save()  # This saves the User instance
+            username = form.cleaned_data.get('username')
+            password = form.cleaned_data.get('password1')
+            print('username', username)
+            # Attempt to authenticate the user
+            user = authenticate(username=username, password=password)
+            print('user', user)
+            if user is not None:
+                login(request, user)
+
+                # Since the user has been authenticated, now we can look for or create the UserProfile
+                profile, created = UserProfile.objects.get_or_create(auth_user=user)
+                print("form.cleaned_data.get('university_name')", form.cleaned_data.get('university_name'))
+                # Update the UserProfile with the new data
+                profile.University_Name = form.cleaned_data.get('university_name')
+                profile.University_ID = form.cleaned_data.get('university_id')
+                profile.User_Short = form.cleaned_data.get('user_short')
+                profile.save()
+                
+                messages.success(request, "Registration Successful!")
+                return redirect('/')
+            else:
+                # Handle failed authentication
+                messages.error(request, "Login failed. Please try again.")
     else:
         form = RegisterUserForm()
 
@@ -255,6 +274,66 @@ def sample_pdf(request):
     # Build the PDF
     doc.build([table])
     return response
+
+def upload_excel(request):
+    if request.method == 'POST':
+        form = ExcelUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            print('request.FILES', request.FILES)
+            excel_file = request.FILES['excel_file']
+            try:
+                # Process the uploaded Excel file
+                process_excel_file(excel_file)
+
+                # Assuming the form contains only one file field named 'excel_file'
+                messages.success(request, "File Uploaded Successfully")
+            except Exception as e:
+                messages.error(request, str(e))
+            
+            # return render(request, 'KauffmanLabApp/sample_list.html')
+            return redirect('sample_list')
+        else:
+            print("Errors", form.errors)
+            for _, error in form.errors.items():
+                messages.error(request, error.as_text())
+    else:
+        form = ExcelUploadForm()
+    return render(request, 'KauffmanLabApp/upload_excel.html', {'form': form})
+
+def process_excel_file(excel_file):
+    # Define mapping of Excel column names to Django model field names
+    column_mapping = {
+        'Item Name *': 'Sample_ID',
+        'labLog.nbPage': 'LabNB_PgNo',
+        'labelNote.short': 'Label_Note',
+        'Excel_Column_Name': 'Sample_Type',
+        'materialType': 'Material_Type',
+        'Excel_Column_Name': 'Parent_Name',
+        # 'Excel_Column_Name': 'Source_ID', 
+        # 'Excel_Column_Name': 'User_ID', extract form sample id
+        'ATCC LINK': 'DigitalNB_Ref',
+        # 'Excel_Column_Name': 'Original_Label',
+        'Additional comment': 'Comments',
+        # Add more mappings as needed
+    }
+
+    # Read Excel file into a DataFrame
+    df = pd.read_excel(excel_file)
+    print(df.head())
+
+    # Iterate over rows and import data into the database
+    for index, row in df.iterrows():
+        sample_data = {}
+        for excel_column, model_field in column_mapping.items():
+            sample_data[model_field] = row[excel_column]
+
+        # Create or update Sample object
+        sample_id = sample_data.pop('Sample_ID')  # Assuming Sample_ID is a required field
+        sample, created = Sample.objects.update_or_create(Sample_ID=sample_id, defaults=sample_data)
+
+        # additional operations if needed
+
+    print("Import completed successfully.")
 
 
 

@@ -1,8 +1,10 @@
+from typing import Any
 from django import forms 
 from django.forms import ModelForm
-from .models import Sample
+from .models import Sample, UserProfile
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 
 
 # Create a Sample form
@@ -56,12 +58,35 @@ class SampleForm(forms.ModelForm):
         
 
 class RegisterUserForm(UserCreationForm):
-    email = forms.EmailField()
-    first_name = forms.CharField(max_length=50)
-    last_name = forms.CharField(max_length=50)
+    email = forms.EmailField(widget=forms.EmailInput(attrs={'class': "form-control", 'placeholder': "Email"}))
+    first_name = forms.CharField(max_length=50, widget=forms.TextInput(attrs={'class': "form-control", 'placeholder': "First Name"}))
+    last_name = forms.CharField(max_length=50, widget=forms.TextInput(attrs={'class': "form-control", 'placeholder': "Last Name"}))
+
+
+    university_name = forms.CharField(max_length=255, widget=forms.TextInput(attrs={'class': "form-control", 'placeholder': "University Name"}))
+    university_id = forms.CharField(max_length=255, widget=forms.TextInput(attrs={'class': "form-control", 'placeholder': "University ID"}))
+    user_short = forms.CharField(max_length=255, widget=forms.TextInput(attrs={'class': "form-control", 'placeholder': "User Short"}))
+
 
     class Meta:
         model = User
         fields = ('username', 'first_name', 'last_name', 'email', 'password1', 'password2')    
+
+    def __init__(self, *args: Any, **kwargs: Any):
+        super(RegisterUserForm, self).__init__(*args, **kwargs)
+
+        self.fields['username'].widget.attrs['class'] = 'form-control'
+        self.fields['password1'].widget.attrs['class'] = 'form-control'
+        self.fields['password2'].widget.attrs['class'] = 'form-control'
+
+
+class ExcelUploadForm(forms.Form):
+    excel_file = forms.FileField(label='', widget=forms.FileInput(attrs={'class': "form-control"}))
+
+    def clean_excel_file(self):
+        file = self.cleaned_data['excel_file']
+        if not file.name.endswith('.xlsx') and not file.name.endswith('.xls'):
+            raise ValidationError('The uploaded file is not a valid Excel file. Please upload an .xls or .xlsx file.')
+        return file
         
 

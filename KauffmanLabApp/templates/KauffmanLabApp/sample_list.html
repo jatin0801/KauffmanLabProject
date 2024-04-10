@@ -44,8 +44,10 @@
             {% render_table filter.qs %}
         </form>
     </div>
-    <button type="submit" class="btn btn-primary" onclick="location.href='{% url 'sample_csv' %}';">Import CSV</button>
-    <button type="submit" class="btn btn-primary" onclick="location.href='{% url 'sample_pdf' %}';">Import PDF</button>
+    <button type="submit" class="btn btn-primary" onclick="location.href='{% url 'sample_csv' %}';">Export CSV</button>
+    <button type="submit" class="btn btn-primary" onclick="location.href='{% url 'sample_pdf' %}';">Export PDF</button>
+    <br/><hr/>
+    <button type="submit" class="btn btn-primary" onclick="location.href='{% url 'upload_excel' %}';">Import from Excel</button>
 <br/><br/>
 </div>
 {% endblock %}

@@ -13,18 +13,13 @@ class UserProfile(models.Model):
     def __str__(self):
         return self.auth_user.username
     
-@receiver(post_save, sender=AuthUser)
-def create_user_profile(sender, instance, created, **kwargs):
+@receiver(post_save, sender=AuthUser)  # Corrected sender
+def create_or_update_user_profile(sender, instance, created, **kwargs):
     if created:
         UserProfile.objects.create(auth_user=instance)
-
-@receiver(post_save, sender=AuthUser)
-def save_user_profile(sender, instance, **kwargs):
-    # instance.user_profile.save()
-    try:
+    else:
         instance.user_profile.save()
-    except UserProfile.DoesNotExist:
-        UserProfile.objects.create(auth_user=instance)
+
 
 class Sample_Types(models.Model):
     id = models.AutoField(primary_key=True)

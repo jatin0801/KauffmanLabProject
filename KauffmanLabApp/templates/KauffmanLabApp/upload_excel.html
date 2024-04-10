@@ -1,0 +1,25 @@
+{% extends "KauffmanLabApp/navbar.html" %}
+<!DOCTYPE html>
+<html>
+    <head>
+        {% load static %}
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        {% block title %}Upload Excel{% endblock %}
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+    <body>
+        {% block content %}
+        <div class="content-container">
+            <h2>Upload Excel File</h2>
+            <hr/>
+            <form method="post" action="{% url 'upload_excel' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                {{ form }}
+                <button type="submit" class="btn btn-primary mt-3">Upload</button>
+            </form>   
+        </div>
+        {% endblock %}
+    </body>
+</html>
