@@ -30,9 +30,6 @@
                 <a class="nav-link active" aria-current="page" href="/contact">Contact</a>
               </li>
             </ul>
-            {% comment %} <div class="d-flex">
-              Hi, User
-            </div> {% endcomment %}
             {% if user.is_authenticated %}
             <form class="d-flex" role="search" action="{% url 'logout' %}">
               <button class="btn btn-primary " type="submit">Logout</button>
@@ -50,19 +47,31 @@
         </div>
       </nav>
       <br>
-      <div class="content-container">
-      {% if messages %}
-        {% for msg in messages %}
-          <div class="alert alert-{{msg.tags}} alert-dismissible fade show" role="alert">
-            {{ msg.message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-          </div>
-        {% endfor %}
-      {% endif %}
-      
+      <div>
+        <div class="alert-container">
+          {% if messages %}
+            {% for msg in messages %}
+              <div class="alert alert-{{msg.tags}} alert-dismissible fade show" role="alert">
+                {{ msg.message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+              <script>
+                // Get all close button elements
+                var closeButtons = document.querySelectorAll('.alert-dismissible .btn-close');
 
-      {% block content %}
-      {% endblock %}
+                // Loop through each close button and close the corresponding alert after 2 seconds
+                closeButtons.forEach(function(closeButton) {
+                  setTimeout(function() {
+                    // Trigger a click event on the close button
+                    closeButton.click();
+                  }, 2000); // 2000 milliseconds = 2 seconds
+                });
+              </script>
+            {% endfor %}
+          {% endif %}
+        </div>
+        {% block content %}
+        {% endblock %}
       </div>
     </body>
 </html>

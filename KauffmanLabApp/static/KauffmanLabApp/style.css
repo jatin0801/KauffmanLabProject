@@ -5,4 +5,28 @@
 
 .alert-container {
     width: 80%;
+    margin: 0 auto; 
+}
+
+.sample-list-container {
+    width: 95%;
+    margin: 0 auto;
+}
+
+.filter-section {
+    float: left;
+    width: 18%; /* Adjust width as needed */
+}
+
+.gap-section{
+    width: 2%;
+}
+
+.table-section {
+    float: right;
+    width: 80%; /* Adjust width as needed */
+}
+
+.clear {
+    clear: both;
 }
