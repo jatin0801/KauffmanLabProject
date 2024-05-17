@@ -14,7 +14,7 @@
 <div class='content-container'>
     <h2>Sample Entry Form</h2>
     <hr>
-    <form method="post" action="{% url 'submit_sample' %}">
+    <form method="post" action="{% url 'sample_input' %}">
         {% csrf_token %}
         <label for="entry_type" class="form-label">Entry Type</label>
         <div class="form-check">

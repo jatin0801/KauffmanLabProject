@@ -8,7 +8,6 @@ urlpatterns = [
     path("about/", views.about, name="about"),
     path("contact/", views.contact, name="contact"),
     path("sample_input/", views.sample_input, name="sample_input"),
-    path("submit_sample/", views.onSubmitSample, name="submit_sample"),
     path("sample_list/", views.sample_list, name="sample_list"),
     path("sample_csv/", views.sample_csv, name="sample_csv"),
     path("sample_pdf/", views.sample_pdf, name="sample_pdf"),

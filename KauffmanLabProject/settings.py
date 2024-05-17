@@ -143,7 +143,7 @@ MEDIA_ROOT =  os.path.join(BASE_DIR, 'KauffmanLabApp/media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-DJANGO_TABLES2_TEMPLATE = "django_tables2/bootstrap5.html"
+DJANGO_TABLES2_TEMPLATE = "django_tables2/bootstrap5-responsive.html"
 
 LOGIN_URL = 'login'
 
