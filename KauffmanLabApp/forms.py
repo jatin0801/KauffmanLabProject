@@ -1,83 +1,12 @@
 from typing import Any
-from django import forms 
-from django.forms import ModelForm
-from .models import Sample, UserProfile
+from django import forms
+from django.apps import apps
+import datetime
+# from django.forms import ModelForm
+from .models import VariableLabelMapping, UserProfile, University
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
-from django.core.exceptions import ValidationError
-
-
-# Create a Sample form
-class SampleForm(forms.ModelForm):
-    entry_type = forms.ChoiceField(choices=(('single', 'Single Entry'), ('batch', 'Batch Entry')), widget=forms.RadioSelect(), initial='single')
-    tube_id = forms.CharField(label='Tube ID', widget=forms.TextInput(attrs={'class': "form-control", 'type': "text", 'placeholder': "eg. if 24040.EH1.GT006 then enter 006 or 6"}))
-    tube_id_start = forms.CharField(label='Tube ID Start', widget=forms.TextInput(attrs={'class': "form-control", 'type': "text", 'placeholder': "eg. if 24040.EH1.GT006 then enter 006 or 6"}))
-    tube_id_end = forms.CharField(label='Tube ID End', widget=forms.TextInput(attrs={'class': "form-control", 'type': "text", 'placeholder': "eg. if 24040.EH1.GT006 then enter 006 or 6"}))
-
-    class Meta:
-        model = Sample
-        fields = ('entry_type', 'User_ID', 'Sample_Type', 'tube_id', 'tube_id_start', 'tube_id_end', 'LabNB_PgNo', 'Label_Note', 'Material_Type', 'Parent_Name', 'Source_ID', 'DigitalNB_Ref', 'Original_Label', 'Comments')
-        exclude = ['Sample_ID']  # excluding Sample_ID as it's a primary key
-        widgets = {
-            'User_ID': forms.Select(attrs={'class': "form-select", 'id': "user_id", 'name': "user_id", 'required': True}),
-            'Sample_Type': forms.Select(attrs={'class': "form-select", 'id': "sample_type", 'name': "sample_type", 'required': True}),
-            'LabNB_PgNo': forms.TextInput(attrs={'class':"form-control", 'type':"text", 'id':"lab_pg_no", 'name':"lab_pg_no", 'placeholder':"Lab Page Number", 'aria-label':"default input example"}),
-            'Label_Note': forms.TextInput(attrs={'class':"form-control", 'type':"text", 'id':"label_note", 'name':"label_note", 'placeholder':"Label Note", 'aria-label':"default input example"}),
-            'Material_Type': forms.TextInput(attrs={'class':"form-control", 'type':"text", 'id':"material_type", 'name':"material_type", 'placeholder':"Material Type", 'aria-label':"default input example", 'required': True}),
-            'Parent_Name': forms.TextInput(attrs={'class':"form-control", 'type':"text", 'id':"parent_name", 'name':"parent_name", 'placeholder':"Parent Name", 'aria-label':"default input example"}),
-            'Source_ID': forms.TextInput(attrs={'class': "form-control", 'type': "text", 'id': "source_id", 'name': "source_id", 'placeholder': "Source ID", 'aria-label': "default input example"}),
-            'DigitalNB_Ref': forms.TextInput(attrs={'class': "form-control", 'type': "text", 'id': "digitalnb_ref", 'name': "digitalnb_ref", 'placeholder': "Digital Notebook Reference", 'aria-label': "default input example"}),
-            'Original_Label': forms.TextInput(attrs={'class': "form-control", 'type': "text", 'id': "original_label", 'name': "original_label", 'placeholder': "Original Label", 'aria-label': "default input example"}),
-            'Comments': forms.TextInput(attrs={'class': "form-control", 'id': "comments", 'name': "comments", 'rows': "3"}),
-
-        }
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # self.fields['sample_type'].required = True  # Making sample_type required by default
-
-        # Dynamically set required attribute based on entry_type
-        # print("Entry type:", self.initial.get('entry_type'))  # Check the value of entry_type
-        # if self.initial.get('entry_type') == 'single':
-        #     print("Setting tube_id as required")
-        #     self.fields['tube_id'].required = True
-        #     self.fields['tube_id_start'].required = False
-        #     self.fields['tube_id_end'].required = False
-        # elif self.initial.get('entry_type') == 'batch':
-        #     print("Setting tube_id_start and tube_id_end as required")
-        #     self.fields['tube_id'].required = False
-        #     self.fields['tube_id_start'].required = True
-        #     self.fields['tube_id_end'].required = True
-
-# tubeIdInput.setAttribute("required", "required");
-# tubeIdStartInput.removeAttribute("required");
-# tubeIdEndInput.removeAttribute("required");
-
-# tubeIdInput.removeAttribute("required");
-# tubeIdStartInput.setAttribute("required", "required");
-# tubeIdEndInput.setAttribute("required", "required");
-        
-
-class RegisterUserForm(UserCreationForm):
-    email = forms.EmailField(widget=forms.EmailInput(attrs={'class': "form-control", 'placeholder': "Email"}))
-    first_name = forms.CharField(max_length=50, widget=forms.TextInput(attrs={'class': "form-control", 'placeholder': "First Name"}))
-    last_name = forms.CharField(max_length=50, widget=forms.TextInput(attrs={'class': "form-control", 'placeholder': "Last Name"}))
-
-
-    university_name = forms.CharField(max_length=255, widget=forms.TextInput(attrs={'class': "form-control", 'placeholder': "University Name"}))
-    university_id = forms.CharField(max_length=255, widget=forms.TextInput(attrs={'class': "form-control", 'placeholder': "University ID"}))
-    user_short = forms.CharField(max_length=255, widget=forms.TextInput(attrs={'class': "form-control", 'placeholder': "User Short"}))
-
-
-    class Meta:
-        model = User
-        fields = ('username', 'first_name', 'last_name', 'email', 'password1', 'password2')    
-
-    def __init__(self, *args: Any, **kwargs: Any):
-        super(RegisterUserForm, self).__init__(*args, **kwargs)
-
-        self.fields['username'].widget.attrs['class'] = 'form-control'
-        self.fields['password1'].widget.attrs['class'] = 'form-control'
-        self.fields['password2'].widget.attrs['class'] = 'form-control'
+from django.core.exceptions import ValidationError      
 
 
 class ExcelUploadForm(forms.Form):
@@ -90,3 +19,118 @@ class ExcelUploadForm(forms.Form):
         return file
         
 
+class DynamicForm(forms.Form):
+    def __init__(self, *args, **kwargs):
+        self.form_group = kwargs.pop('form_group', None)
+        self.filter_kwargs = kwargs.pop('filter_kwargs', None)
+        self.initial_values = kwargs.pop('initial_values', None)
+        super(DynamicForm, self).__init__(*args, **kwargs)
+        if self.form_group:
+            mappings = VariableLabelMapping.objects.filter(form_group=self.form_group).order_by('order_no')
+            for mapping in mappings:
+                # print(mapping.label_name, self.initial_values[mapping.variable_name], type(self.initial_values[mapping.variable_name]))
+                field_kwargs = {
+                    'label': mapping.label_name,
+                    'required': mapping.field_required,
+                    'initial': self.initial_values[mapping.variable_name] if self.initial_values else None,
+                    'help_text': f'Prefix: {str(datetime.datetime.now().year)[-2:]}.{datetime.datetime.now().timetuple().tm_yday}' if mapping.variable_name == 'id' or mapping.variable_name == 'start_id' or mapping.variable_name == 'end_id'  else mapping.help_text,
+                }
+                if mapping.choice_table:
+                    model_name = mapping.choice_table
+                    app_label = 'KauffmanLabApp'
+                    model = apps.get_model(app_label, model_name)
+                    if self.filter_kwargs:
+                        choices = [(getattr(choice, mapping.choice_id_field), getattr(choice, mapping.choice_text_field)) for choice in model.objects.filter(**self.filter_kwargs)]
+                    else:
+                        choices = [(getattr(choice, mapping.choice_id_field), getattr(choice, mapping.choice_text_field)) for choice in model.objects.all()]
+                elif mapping.choices:
+                    choices = [(choice.id, choice.choice_text) for choice in mapping.choices.all()]
+                if mapping.field_type == 'char':
+                    self.fields[mapping.variable_name] = forms.CharField(
+                        **field_kwargs, max_length=100, widget=forms.TextInput(attrs={'class': 'form-control'})
+                    )
+                elif mapping.field_type == 'select':
+                    # choices = [(choice.id, choice.choice_text) for choice in mapping.choices.all()]
+                    self.fields[mapping.variable_name] = forms.ChoiceField(
+                        **field_kwargs, choices=choices, widget=forms.Select(attrs={'class': 'form-select'})
+                    )
+                elif mapping.field_type == 'boolean':
+                    self.fields[mapping.variable_name] = forms.BooleanField(
+                        **field_kwargs, widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+                    )
+                elif mapping.field_type == 'integer':
+                    self.fields[mapping.variable_name] = forms.IntegerField(
+                        **field_kwargs, widget=forms.NumberInput(attrs={'class': 'form-control'})
+                    )
+                elif mapping.field_type == 'email':
+                    self.fields[mapping.variable_name] = forms.EmailField(
+                        **field_kwargs, widget=forms.EmailInput(attrs={'class': 'form-control'})
+                    )
+                elif mapping.field_type == 'file':
+                    self.fields[mapping.variable_name] = forms.FileField(
+                        **field_kwargs, widget=forms.ClearableFileInput(attrs={'class': 'form-control-file'})
+                    )
+                elif mapping.field_type == 'url':
+                    self.fields[mapping.variable_name] = forms.URLField(
+                        **field_kwargs, widget=forms.URLInput(attrs={'class': 'form-control'})
+                    )
+                elif mapping.field_type == 'typedchoice':
+                    self.fields[mapping.variable_name] = forms.TypedChoiceField(
+                        **field_kwargs, choices=choices, coerce=int, widget=forms.Select(attrs={'class': 'form-control'})
+                    )
+                elif mapping.field_type == 'multiplechoice':
+                    # choices = [(choice.id, choice.choice_text) for choice in mapping.choices.all()]
+                    self.fields[mapping.variable_name] = forms.MultipleChoiceField(
+                        **field_kwargs, choices=choices, widget=forms.SelectMultiple(attrs={'class': 'form-control'})
+                    )
+                elif mapping.field_type == 'typedmultiplechoice':
+                    # choices = [(choice.id, choice.choice_text) for choice in mapping.choices.all()]
+                    self.fields[mapping.variable_name] = forms.TypedMultipleChoiceField(
+                        **field_kwargs, choices=choices, coerce=int, widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'})
+                    )
+
+class UserRegistrationForm(forms.ModelForm):
+    # form_group = 'user_register'
+    # form = DynamicForm(form_group=form_group)
+    username = forms.CharField(max_length=150, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'form-control'}))
+    first_name = forms.CharField(max_length=30, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    last_name = forms.CharField(max_length=30, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    email = forms.EmailField(widget=forms.EmailInput(attrs={'class': 'form-control'}))
+    user_short = forms.CharField(max_length=5, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    university_name = forms.ChoiceField(widget=forms.Select(attrs={'class': 'form-select'}))
+    class Meta:
+        model = UserProfile
+        fields = ['username', 'password', 'first_name', 'last_name', 'email', 'university_name', 'user_short']
+    
+    def __init__(self, *args, **kwargs):
+            super(UserRegistrationForm, self).__init__(*args, **kwargs)
+            # self.dynamic_form = DynamicForm(*args, **kwargs)
+            self.fields['university_name'].choices = [(university.id, university.university_name) for university in University.objects.all()]
+
+    def save(self, commit=True):
+        user = User.objects.create_user(
+            username=self.cleaned_data['username'],
+            password=self.cleaned_data['password'],
+            first_name=self.cleaned_data['first_name'],
+            last_name=self.cleaned_data['last_name'],
+            email=self.cleaned_data['email']
+        )
+        user_profile = UserProfile(
+            auth_user=user,
+            university_name=self.cleaned_data['university_name'],
+            user_short=self.cleaned_data['user_short']
+        )
+        if commit:
+            user.save()
+            user_profile.save()
+        return user_profile
+    
+class ConfirmationForm(forms.Form):
+    confirm = forms.BooleanField(widget=forms.HiddenInput, required=False)
+    
+    def __init__(self, *args, **kwargs):
+        confirm_message = kwargs.pop('confirm_message', 'Are you sure you want to perform this action?')
+        super().__init__(*args, **kwargs)
+        # self.fields['confirm'].label = confirm_message
+        self.confirm_message = confirm_message

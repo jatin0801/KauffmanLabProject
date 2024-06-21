@@ -18,6 +18,14 @@
     width: 18%; /* Adjust width as needed */
 }
 
+.filter-fields{
+    height: 70vh; /* 75% of the viewport height */
+    overflow-y: auto; /* Adds a vertical scrollbar when content overflows */
+    /* border: 1px solid #000; Optional: To visualize the div boundary */
+    /* padding: 10px; Optional: Adds some padding inside the div */
+    box-sizing: border-box; /* Ensures padding and border are included in the width/height */
+}
+
 .gap-section{
     width: 2%;
 }
@@ -29,4 +37,17 @@
 
 .clear {
     clear: both;
+}
+
+table {
+    width: 100%;
+}
+
+table th, table td {
+    word-wrap: break-word;
+    height: 50px;
+    width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis; 
+    white-space: nowrap;
 }

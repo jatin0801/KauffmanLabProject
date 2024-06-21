@@ -1,23 +1,24 @@
 from django.contrib import admin
 
 # Register your models here.
-from .models import Sample
-from .models import BacteriaSample
-from .models import VirusSample
-from .models import EnvironmentalSample
-from .models import ClinicalSample
-from .models import Storage
-from .models import UserProfile
-from .models import Sample_Types
 
+# new
+from .models import Sample, OrganismType, UserProfile, Choice, VariableLabelMapping, University, Room, StorageUnit, Shelf, Rack, Storage, SampleInsertType
+# sample
 admin.site.register(Sample)
-admin.site.register(BacteriaSample)
-admin.site.register(VirusSample)
-admin.site.register(EnvironmentalSample)
-admin.site.register(ClinicalSample)
-admin.site.register(Storage)
+admin.site.register(OrganismType)
+admin.site.register(Choice)
+admin.site.register(VariableLabelMapping)
 admin.site.register(UserProfile)
-admin.site.register(Sample_Types)
+admin.site.register(SampleInsertType)
+
+# storage
+admin.site.register(University)
+admin.site.register(Room)
+admin.site.register(StorageUnit)
+admin.site.register(Shelf)
+admin.site.register(Rack)
+admin.site.register(Storage)
 
 
 

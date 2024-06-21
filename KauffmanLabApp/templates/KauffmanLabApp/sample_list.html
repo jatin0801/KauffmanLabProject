@@ -17,13 +17,16 @@
     <div class='filter-section'>
         <h4>Apply filters</h4>
         <hr/>
-        <form method="get" id="operation-form" class="form-group">
-            {% for field in filter.form %}
-            <div class="mb-3">
-                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label><br/>
-                {{ field }}
+        
+        <form method="get" class="form-group">
+            <div class='filter-fields'>
+                {% for field in sample_filter.form %}
+                <div class="mb-3">
+                    <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label><br/>
+                    {{ field }}
+                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
             <button type="submit" class="btn btn-primary">Filter</button>
             <button type="button" class='btn btn-secondary' onclick="window.location.href=window.location.pathname;">Clear</button>
         </form>
