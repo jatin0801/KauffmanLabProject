@@ -33,7 +33,7 @@
             {% else %}
                 <p>No storage information available.</p>
             {% endif %}
-            <button type="submit" class="btn btn-primary" onclick="location.href='{% url 'sample_edit' sample_id=sample.id %}';">Edit</button>  
+            <button type="submit" class="btn btn-primary" onclick="location.href='{% url 'sample_edit' sample_id=sample.id %}';">Edit Sample Info</button>  
             {% with form_group='storage_samples' %}
             <button type="submit" class="btn btn-primary" onclick="location.href='{% url 'form_view' form_group %}';">Add/Edit Storage Info</button>
             {% endwith %}

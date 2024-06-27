@@ -32,7 +32,7 @@ class DynamicForm(forms.Form):
                 field_kwargs = {
                     'label': mapping.label_name,
                     'required': mapping.field_required,
-                    'initial': self.initial_values[mapping.variable_name] if self.initial_values else None,
+                    'initial': self.initial_values[mapping.variable_name] if(self.initial_values and self.initial_values[mapping.variable_name]) else None,
                     'help_text': f'Prefix: {str(datetime.datetime.now().year)[-2:]}.{datetime.datetime.now().timetuple().tm_yday}' if mapping.variable_name == 'id' or mapping.variable_name == 'start_id' or mapping.variable_name == 'end_id'  else mapping.help_text,
                 }
                 if mapping.choice_table:
@@ -90,41 +90,22 @@ class DynamicForm(forms.Form):
                     )
 
 class UserRegistrationForm(forms.ModelForm):
-    # form_group = 'user_register'
-    # form = DynamicForm(form_group=form_group)
     username = forms.CharField(max_length=150, widget=forms.TextInput(attrs={'class': 'form-control'}))
     password = forms.CharField(widget=forms.PasswordInput(attrs={'class': 'form-control'}))
     first_name = forms.CharField(max_length=30, widget=forms.TextInput(attrs={'class': 'form-control'}))
     last_name = forms.CharField(max_length=30, widget=forms.TextInput(attrs={'class': 'form-control'}))
     email = forms.EmailField(widget=forms.EmailInput(attrs={'class': 'form-control'}))
     user_short = forms.CharField(max_length=5, widget=forms.TextInput(attrs={'class': 'form-control'}))
-    university_name = forms.ChoiceField(widget=forms.Select(attrs={'class': 'form-select'}))
+    # university_name = forms.ChoiceField(widget=forms.Select(attrs={'class': 'form-select'}))
+    university_name = forms.ModelChoiceField(queryset=University.objects.all(), widget=forms.Select(attrs={'class': 'form-select'}))
+    
     class Meta:
         model = UserProfile
         fields = ['username', 'password', 'first_name', 'last_name', 'email', 'university_name', 'user_short']
     
-    def __init__(self, *args, **kwargs):
-            super(UserRegistrationForm, self).__init__(*args, **kwargs)
-            # self.dynamic_form = DynamicForm(*args, **kwargs)
-            self.fields['university_name'].choices = [(university.id, university.university_name) for university in University.objects.all()]
-
-    def save(self, commit=True):
-        user = User.objects.create_user(
-            username=self.cleaned_data['username'],
-            password=self.cleaned_data['password'],
-            first_name=self.cleaned_data['first_name'],
-            last_name=self.cleaned_data['last_name'],
-            email=self.cleaned_data['email']
-        )
-        user_profile = UserProfile(
-            auth_user=user,
-            university_name=self.cleaned_data['university_name'],
-            user_short=self.cleaned_data['user_short']
-        )
-        if commit:
-            user.save()
-            user_profile.save()
-        return user_profile
+    # def __init__(self, *args, **kwargs):
+    #     super(UserRegistrationForm, self).__init__(*args, **kwargs)
+    #     self.fields['university_name'].choices = [(university.id, university.university_name) for university in University.objects.all()]
     
 class ConfirmationForm(forms.Form):
     confirm = forms.BooleanField(widget=forms.HiddenInput, required=False)

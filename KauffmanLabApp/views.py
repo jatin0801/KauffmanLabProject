@@ -13,7 +13,12 @@ from .filters import SampleFilter
 from .forms import DynamicForm, ConfirmationForm, UserRegistrationForm, ExcelUploadForm
 import csv
 import pandas as pd
+import numpy as np
 from itertools import chain
+import os
+from django.conf import settings
+from django.http import HttpResponse, FileResponse
+from django.contrib.auth.models import User
 
 # Export csv/pdf stuff
 from reportlab.lib.pagesizes import letter, landscape
@@ -74,10 +79,35 @@ def user_register(request):
     if request.method == 'POST':
         form = UserRegistrationForm(request.POST)
         if form.is_valid():
-            form.save()
+            cleaned_data = form.cleaned_data
+
+            # Create the User object
+            user = User.objects.create_user(
+                username=cleaned_data['username'],
+                password=cleaned_data['password'],
+                first_name=cleaned_data['first_name'],
+                last_name=cleaned_data['last_name'],
+                email=cleaned_data['email']
+            )
+
+            # Fetch the University instance
+            # university_instance = University.objects.get(id=cleaned_data['university_name'])
+
+            # Create the UserProfile object
+            user_profile = UserProfile(
+                auth_user=user,
+                university_name=cleaned_data['university_name'],  # This is now a University instance
+                user_short=cleaned_data['user_short']
+            )
+
+            # Save the user and user profile
+            user.save()
+            user_profile.save()
+
             return redirect('/')
     else:
         form = UserRegistrationForm()
+
     return render(request, 'KauffmanLabApp/register_user.html', {'form': form})
 
 # TODO: Sample Edit function
@@ -126,6 +156,12 @@ def sample_discard(request, sample_id):
 # TODO: diplay values from storage table. filters working fine.
 @login_required
 def sample_list(request):
+    # Clearing session data
+    session_data = list(VariableLabelMapping.objects.values_list('variable_name', flat=True))
+    for s in session_data:
+        if s in request.session:
+            del request.session[s]
+
     sample_filter = SampleFilter(request.GET, queryset=Sample.objects.all().order_by('id'))
     samples = sample_filter.qs
     # pagination
@@ -208,6 +244,7 @@ def sample_csv(request):
     return response
 
 def sample_detail(request, pk):
+    request.session['sample_list'] = [pk]
     sample = get_object_or_404(Sample, pk=pk)
     column_mapping = {
         "ID": sample.id,
@@ -251,8 +288,6 @@ def sample_detail(request, pk):
             "Rack": storage.rack,
             "Unit Type": storage.unit_type,
         }
-      
-    # storage_details = get_object_or_404(Storage, Sample_ID_id=pk)
     return render(request, 'KauffmanLabApp/sample_detail.html', {'sample': sample, 'column_mapping': column_mapping, 'storage_mapping': storage_mapping,})
 
 def display_alert(request, alert_type=None, alert_msg=None):
@@ -324,7 +359,7 @@ def upload_excel(request):
             excel_file = request.FILES['excel_file']
             try:
                 # Process the uploaded Excel file
-                process_excel_file(excel_file)
+                process_excel_file(request, excel_file)
 
                 # Assuming the form contains only one file field named 'excel_file'
                 messages.success(request, "File Uploaded Successfully")
@@ -341,40 +376,147 @@ def upload_excel(request):
         form = ExcelUploadForm()
     return render(request, 'KauffmanLabApp/upload_excel.html', {'form': form})
 
+def replace_nan_with_blank(data):
+    return {k: ('' if pd.isna(v) else v) for k, v in data.items()}
+
+def convert_yes_no_to_boolean(value):
+    if isinstance(value, str):
+        if value.lower() == 'yes':
+            return True
+        elif value.lower() == 'no':
+            return False
+    return value
+
 # TODO: import from excel function
-def process_excel_file(excel_file):
+def process_excel_file(request, excel_file):
     # Define mapping of Excel column names to Django model field names
-    column_mapping = {
-        'Item Name *': 'Sample_ID',
-        'labLog.nbPage': 'LabNB_PgNo',
-        'labelNote.short': 'Label_Note',
-        'Excel_Column_Name': 'Sample_Type',
-        'materialType': 'Material_Type',
-        'Excel_Column_Name': 'Parent_Name',
-        # 'Excel_Column_Name': 'Source_ID', 
-        # 'Excel_Column_Name': 'User_ID', extract form sample id
-        'ATCC LINK': 'DigitalNB_Ref',
-        # 'Excel_Column_Name': 'Original_Label',
-        'Additional comment': 'Comments',
-        # Add more mappings as needed
+    excel_to_django_field_map = {
+    'ID': 'id',
+    'Lab NB Page No': 'labnb_pgno',
+    'Label Note': 'label_note',
+    'Organism Type': 'organism_type',
+    'Material Type': 'material_type',
+    'Status': 'status',
+    'Storage Solution': 'storage_solution',
+    'Lab Lot No': 'lab_lotno',
+    'Owner': 'owner',
+    'Benchling Link': 'benchling_link',
+    'Is Sequenced': 'is_sequenced',
+    'Parent Name': 'parent_name',
+    'General Comments': 'general_comments',
+    'Genetic Modifications': 'genetic_modifications',
+    'Species': 'species',
+    'Strain Name Main': 'strainname_main',
+    'Strain Name Core': 'strainname_core',
+    'Strain Name Other': 'strainname_other',
+    'Strain Name ATCC': 'strainname_atcc',
+    'ATCC Link': 'strain_link',
+    'Source Name': 'source_name',
+    'Is Purchased': 'is_purchased',
+    'Source Lot No': 'source_lotno',
+    'Is Under MTA': 'is_undermta',
+    'Source Recommended Media': 'source_recommendedmedia',
+    'Is Discarded': 'is_discarded',
+    'University Name': 'storage_id.university_name',
+    'Room Number': 'storage_id.room_number',
+    'Storage Unit': 'storage_id.storage_unit',
+    'Shelf': 'storage_id.shelf',
+    'Rack': 'storage_id.rack',
+    'Unit Type': 'storage_id.unit_type',
     }
 
     # Read Excel file into a DataFrame
-    df = pd.read_excel(excel_file)
+    sheet_name = 'Strain Data'
+    df = pd.read_excel(excel_file, sheet_name=sheet_name)
 
     # Iterate over rows and import data into the database
     for index, row in df.iterrows():
         sample_data = {}
-        for excel_column, model_field in column_mapping.items():
-            sample_data[model_field] = row[excel_column]
+        storage_data = {}
+        
+        for excel_column, model_field in excel_to_django_field_map.items():
+            value = row[excel_column]
+            value = convert_yes_no_to_boolean(value)
+
+            if model_field.startswith('storage_id.'):
+                storage_field = model_field.split('.', 1)[1]
+                storage_data[storage_field] = value
+            else:
+                sample_data[model_field] = value
+        
+        # Replace NaN values with blank strings
+        sample_data = replace_nan_with_blank(sample_data)
+        storage_data = replace_nan_with_blank(storage_data)
+
+        print('sample_data', sample_data)
+        print('storage_data', storage_data)
+
+        # Create or get related Storage object
+        if not any(value == '' for value in storage_data.values()):
+            try:
+                # Lookup for University
+                university = University.objects.get(university_name=storage_data.pop('university_name'))
+                
+                # Lookup for Room
+                room_number = storage_data.pop('room_number')
+                room = Room.objects.get(room_number=room_number, university_name=university)
+                
+                # Lookup for StorageUnit
+                storage_unit_value = storage_data.pop('storage_unit')
+                storage_unit = StorageUnit.objects.get(storage_unit=storage_unit_value, room_number=room)
+                
+                # Lookup for Shelf
+                shelf_value = storage_data.pop('shelf')
+                shelves = Shelf.objects.filter(shelf=shelf_value, storage_unit=storage_unit)
+                if shelves.exists():
+                    shelf = shelves.first()  # If multiple shelves are found, use the first one
+                else:
+                    raise Shelf.DoesNotExist(f"No shelf found for value {shelf_value} in storage unit {storage_unit}")
+                
+                # Lookup for Rack
+                rack_value = storage_data.pop('rack')
+                racks = Rack.objects.filter(rack=rack_value, shelf=shelf)
+                if racks.exists():
+                    rack = racks.first()  # If multiple racks are found, use the first one
+                else:
+                    raise Rack.DoesNotExist(f"No rack found for value {rack_value} in shelf {shelf}")
+                
+                # Create or get Storage
+                storage = Storage.objects.create(
+                    university_name=university,
+                    room_number=room,
+                    storage_unit=storage_unit,
+                    shelf=shelf,
+                    rack=rack,
+                    **storage_data
+                )
+                sample_data['storage_id'] = storage
+            
+            except (University.DoesNotExist, Room.DoesNotExist, StorageUnit.DoesNotExist, Shelf.DoesNotExist, Rack.DoesNotExist) as e:
+                # Handle the case where any of the objects do not exist
+                print(f"One or more related objects do not exist: {e}")
+        else:
+            print("Skipping processing due to empty values in storage_data.")
+
+        # Handle foreign keys for OrganismType and UserProfile
+        if 'organism_type' in sample_data and sample_data['organism_type'] != '':
+            sample_data['organism_type'] = OrganismType.objects.get(organism_type=sample_data['organism_type'])
+        if 'owner' in sample_data and sample_data['owner'] != '':
+            sample_data['owner'] = UserProfile.objects.get(user_short=sample_data['owner'])
 
         # Create or update Sample object
-        sample_id = sample_data.pop('Sample_ID')  # Assuming Sample_ID is a required field
-        sample, created = Sample.objects.update_or_create(Sample_ID=sample_id, defaults=sample_data)
-
-        # additional operations if needed
-
+        sample_id = sample_data.pop('id')  # Assuming ID is a required field
+        sample, created = Sample.objects.update_or_create(id=sample_id, defaults=sample_data)
+    messages.success(request, 'Import completed successfully.')
     print("Import completed successfully.")
+
+def download_excel_template(request):
+    file_path = os.path.join(settings.MEDIA_ROOT, 'files/excel_import_template.xlsx')
+    print(file_path)
+    if os.path.exists(file_path):
+        return FileResponse(open(file_path, 'rb'), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, filename='template.xlsx')
+    else:
+        return HttpResponse("File not found.", status=404)
 
 def form_view(request, form_group):
     print('+++++++++++++++++form_group', request, form_group)
@@ -477,10 +619,22 @@ def form_view(request, form_group):
                 return redirect('/')
     else:
         filter_kwargs = None
+        initial_values = {}
+        if form_group in form_group_mapping:
+            mapping = form_group_mapping[form_group]
+            keys = mapping.get('keys', [])
+            if keys:
+                for key in keys:
+                    if key in request.session:
+                        initial_values[key] = request.session[key]
+            else:
+                key = mapping['key']
+                if key in request.session:
+                    initial_values[key] = request.session[key]
         if form_group.startswith('storage_'):
             # Retrieve filter data from session for storage forms
             filter_kwargs = set_filtered_dropdown(request, form_group)
-        form = DynamicForm(form_group=form_group, filter_kwargs = filter_kwargs)
+        form = DynamicForm(form_group=form_group, filter_kwargs = filter_kwargs, initial_values=initial_values)
     
     form_header = get_form_header(form_group)
     return render(request, 'KauffmanLabApp/form.html', {'form': form, 'form_group': form_group, 'form_header': form_header})

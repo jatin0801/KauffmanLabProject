@@ -18,6 +18,7 @@ urlpatterns = [
     path("upload_excel/", views.upload_excel, name="upload_excel"),
     path('sample_list/<str:pk>/', views.sample_detail, name='sample_detail'),
     path('form/<str:form_group>/', views.form_view, name='form_view'),
+    path('download_excel_template/', views.download_excel_template, name='download_excel_template'),
 ]
 
 if settings.DEBUG:

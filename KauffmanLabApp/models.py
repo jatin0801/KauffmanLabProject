@@ -96,7 +96,7 @@ class Sample(models.Model):
     lab_lotno = models.CharField(max_length=255, blank=True, null=True)
     owner = models.ForeignKey(UserProfile, blank=True, null=True, on_delete=models.SET_NULL)
     benchling_link = models.CharField(max_length=255, blank=True, null=True)
-    is_sequenced = models.BooleanField(default=False)
+    is_sequenced = models.BooleanField(blank=True, null=True)
     parent_name = models.CharField(max_length=255, blank=True, null=True)
     general_comments = models.TextField(blank=True, null=True)
     genetic_modifications = models.CharField(max_length=255, blank=True, null=True)
@@ -107,11 +107,11 @@ class Sample(models.Model):
     strainname_atcc = models.CharField(max_length=255, blank=True, null=True)
     strain_link = models.CharField(max_length=255, blank=True, null=True)
     source_name = models.CharField(max_length=255, blank=True, null=True)
-    is_purchased = models.BooleanField(default=False)
+    is_purchased = models.BooleanField(default=False, blank=True, null=True)
     source_lotno = models.CharField(max_length=255, blank=True, null=True)
-    is_undermta = models.BooleanField(default=False)
+    is_undermta = models.BooleanField(blank=True, null=True)
     source_recommendedmedia = models.CharField(max_length=255, blank=True, null=True)
-    is_discarded = models.BooleanField(default=False)
+    is_discarded = models.BooleanField(default=False, blank=True, null=True)
     storage_id = models.OneToOneField(Storage, blank = True, null = True, on_delete = models.SET_NULL)
 
     def __init__(self, *args, **kwargs):
