@@ -1,0 +1,27 @@
+{% extends "KauffmanLabApp/navbar.html" %}
+<!DOCTYPE html>
+<html>
+    <head>
+        {% load static %}
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        {% block title %}Confirmation Page{% endblock %}
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+    <body>
+        {% block content %}
+        <div class="content-container">
+            <h2>Confirmation Page</h2>
+            <hr/>
+            <p>{{ form.confirm_message }}</p>
+            <form method="post">
+                {% csrf_token %}
+                {% comment %} {{ form.as_p }} {% endcomment %}
+                <button type="submit" class="btn btn-primary" name="confirm" value="True">Yes</button>
+                <button type="submit" class="btn btn-primary" name="confirm" value="False">No</button>
+            </form>
+        </div>
+        {% endblock %}
+    </body>
+</html>
