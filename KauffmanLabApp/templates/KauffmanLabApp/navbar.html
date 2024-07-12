@@ -30,19 +30,35 @@
                 <a class="nav-link active" aria-current="page" href="/contact">Contact</a>
               </li>
             </ul>
-            {% if user.is_authenticated %}
-            <form class="d-flex" role="search" action="{% url 'logout' %}">
-              <button class="btn btn-primary " type="submit">Logout</button>
-            </form>
-            {% else %}
-            <form class="d-flex" role="search" action="{% url 'login' %}">
-              <button class="btn btn-primary " type="submit">Login</button>
-            </form>
-            <form class="d-flex" role="search" action="{% url 'register' %}">
-              <button class="btn btn-primary " type="submit">Register</button>
-            </form>
-            {% endif %}
-            
+            <div class="dropdown">
+              <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                {% if user.is_authenticated %}
+                  {{ user.first_name }}
+                {% else %}
+                  Account
+                {% endif %}
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton">
+                {% if user.is_authenticated %}
+                  <li>
+                    <form class="d-flex" role="search" action="{% url 'logout' %}">
+                      <button class="dropdown-item" type="submit">Logout</button>
+                    </form>
+                  </li>
+                {% else %}
+                  <li>
+                    <form class="d-flex" role="search" action="{% url 'login' %}">
+                      <button class="dropdown-item" type="submit">Login</button>
+                    </form>
+                  </li>
+                  <li>
+                    <form class="d-flex" role="search" action="{% url 'register' %}">
+                      <button class="dropdown-item" type="submit">Register</button>
+                    </form>
+                  </li>
+                {% endif %}
+              </ul>
+            </div>
           </div>
         </div>
       </nav>
@@ -55,7 +71,7 @@
                 {{ msg.message }}
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
               </div>
-              <script>
+              {% comment %} <script>
                 // Get all close button elements
                 var closeButtons = document.querySelectorAll('.alert-dismissible .btn-close');
 
@@ -66,7 +82,7 @@
                     closeButton.click();
                   }, 2000); // 2000 milliseconds = 2 seconds
                 });
-              </script>
+              </script> {% endcomment %}
             {% endfor %}
           {% endif %}
         </div>

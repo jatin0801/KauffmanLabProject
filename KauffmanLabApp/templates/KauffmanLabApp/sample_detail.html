@@ -1,0 +1,45 @@
+{% extends "KauffmanLabApp/navbar.html" %}
+<!DOCTYPE html>
+<html>
+    <head>
+        {% load static %}
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        {% block title %}Sample Details{% endblock %}
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+    <body>
+        {% block content %}
+        <div class="content-container">
+            <h2>Sample Details</h2>
+            <hr>
+            <ul>
+                {% for column_name, column_value in column_mapping.items %}
+                    <li><strong>{{ column_name }}:</strong> {{ column_value }}</li>
+                {% endfor %}
+            </ul>
+
+            <br/>
+            
+            {% if storage_mapping %}
+            <h2>Storage Details</h2>
+            <hr/>
+            <ul>
+                {% for storage_name, storage_value in storage_mapping.items %}
+                    <li><strong>{{ storage_name }}:</strong> {{ storage_value }}</li>
+                {% endfor %}
+            </ul>
+            {% else %}
+                <p>No storage information available.</p>
+            {% endif %}
+            <button type="submit" class="btn btn-primary" onclick="location.href='{% url 'sample_edit' sample_id=sample.id %}';">Edit Sample Info</button>  
+            {% with form_group='storage_samples' %}
+            <button type="submit" class="btn btn-primary" onclick="location.href='{% url 'form_view' form_group %}';">Add/Edit Storage Info</button>
+            {% endwith %}
+            <button type="submit" class="btn btn-danger" onclick="location.href='{% url 'sample_discard' sample_id=sample.id %}';">Discard</button>  
+            <br/><br/>
+        </div>
+        {% endblock %}
+    </body>
+</html>

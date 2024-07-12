@@ -1,0 +1,25 @@
+{% extends "KauffmanLabApp/navbar.html" %}
+<!DOCTYPE html>
+<html>
+    <head>
+        {% load static %}
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        {% block title %}{{ form_header }}{% endblock %}
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+    <body>
+        {% block content %}
+        <div class='content-container'>
+            <h2>{{form_header}}</h2>
+            <hr>
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit" class="btn btn-primary">Submit</button>
+            </form>
+            {% endblock %}
+        </div>
+    </body>
+</html>
