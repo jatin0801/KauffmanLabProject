@@ -51,13 +51,8 @@ class Storage(models.Model):
     storage_unit = models.ForeignKey(StorageUnit, on_delete=models.CASCADE, related_name='storages')
     shelf = models.ForeignKey(Shelf, on_delete=models.CASCADE, related_name='storages', null=True, blank=True)
     rack = models.ForeignKey(Rack, on_delete=models.CASCADE, related_name='storages', null=True, blank=True)
+    box = models.CharField(max_length=255, blank=True, null=True)
     unit_type = models.CharField(max_length=255, blank=True, null=True)
-
-    def __init__(self, *args, **kwargs):
-        super(Storage, self).__init__(*args, **kwargs)
-        for key, value in kwargs.items():
-            print('Saving...', key, value)
-            setattr(self, key, value)
 
     def __str__(self):
             return f'{self.rack} -> {self.unit_type}'
@@ -112,7 +107,7 @@ class Sample(models.Model):
     is_undermta = models.BooleanField(blank=True, null=True)
     source_recommendedmedia = models.CharField(max_length=255, blank=True, null=True)
     is_discarded = models.BooleanField(default=False, blank=True, null=True)
-    storage_id = models.OneToOneField(Storage, blank = True, null = True, on_delete = models.SET_NULL)
+    storage_id = models.OneToOneField(Storage, null = True, on_delete = models.CASCADE)
 
     def __init__(self, *args, **kwargs):
         super(Sample, self).__init__(*args, **kwargs)

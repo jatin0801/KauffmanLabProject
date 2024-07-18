@@ -14,7 +14,7 @@
         <div class="content-container">
             <h2>Confirmation Page</h2>
             <hr/>
-            <p>{{ form.confirm_message }}</p>
+            <p>{{ form.confirm_message|safe }}</p>
             <form method="post">
                 {% csrf_token %}
                 {% comment %} {{ form.as_p }} {% endcomment %}

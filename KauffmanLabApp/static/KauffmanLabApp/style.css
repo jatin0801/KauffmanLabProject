@@ -51,3 +51,30 @@ table th, table td {
     text-overflow: ellipsis; 
     white-space: nowrap;
 }
+
+.search-bar {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 2px; /* Adjust as needed */
+}
+
+.search-bar form {
+    width: 60%; /* Adjust as needed for the desired length */
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.search-bar form p {
+    flex: 1; /* Make input fields take up available space */
+    margin-right: 10px; /* Space between the input and the button */
+}
+
+.search-bar form input[type="text"] {
+    width: 100%; /* Ensure the input field uses the full width of its container */
+}
+
+.search-bar .btn-primary {
+    margin-left: 10px; /* Space between the input and the button */
+}

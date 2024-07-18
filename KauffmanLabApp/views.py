@@ -4,21 +4,25 @@ import datetime
 from django.http import HttpResponse, HttpResponseRedirect 
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from .models import UserProfile, Sample, Storage, VariableLabelMapping, OrganismType, University, Room, StorageUnit, Shelf, Rack
 from django.db.models import ForeignKey
+from django.db import transaction
 from django.apps import apps
 from .tables import SampleStorageTable
 from .filters import SampleFilter
-from .forms import DynamicForm, ConfirmationForm, UserRegistrationForm, ExcelUploadForm
+from .forms import DynamicForm, ConfirmationForm, UserRegistrationForm, ExcelUploadForm, SampleSearchForm
 import csv
 import pandas as pd
 import numpy as np
 from itertools import chain
 import os
+import tempfile
 from django.conf import settings
 from django.http import HttpResponse, FileResponse
 from django.contrib.auth.models import User
+from django.core.files.base import ContentFile
+import subprocess
 
 # Export csv/pdf stuff
 from reportlab.lib.pagesizes import letter, landscape
@@ -26,11 +30,14 @@ from reportlab.pdfgen import canvas
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
 from reportlab.lib import colors
 from reportlab.lib.units import inch
+from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Font
 
 # Pagination stuff
 from django.core.paginator import Paginator
 
 from django.db.models import Prefetch, Subquery, F
+from django.db.models import Q
 
 
 def generate_sample_id(user_id, material_type, tube_id): #make tube_id 3 digit no
@@ -42,14 +49,22 @@ def generate_sample_id(user_id, material_type, tube_id): #make tube_id 3 digit n
     return identifier
 
 def home(request):
+    clear_session_data(request)
+    return render(request, "KauffmanLabApp/home.html")
+
+def clear_session_data(request):
     session_data = list(VariableLabelMapping.objects.values_list('variable_name', flat=True))
     for s in session_data:
         if s in request.session:
             del request.session[s]
-    return render(request, "KauffmanLabApp/home.html")
+    request.session.save()
 
 def about(request):
     return render(request, "KauffmanLabApp/about.html")
+
+def admin_panel(request):
+    clear_session_data(request)
+    return render(request, "KauffmanLabApp/admin_panel.html")
 
 def contact(request):
     return render(request, "KauffmanLabApp/contact.html")
@@ -110,13 +125,11 @@ def user_register(request):
 
     return render(request, 'KauffmanLabApp/register_user.html', {'form': form})
 
-# TODO: Sample Edit function
-@login_required
+@user_passes_test(lambda u: u.is_staff)
 def sample_edit(request, sample_id):
-    print("IN SAMPLE EDIT")
     sample = get_object_or_404(Sample, id=sample_id)
     initial_values = {field.name: getattr(sample, field.name) for field in sample._meta.fields}
-    form_group = 'sample_form'    
+    form_group = 'sample_form'
     # set initial_values and send it to form
     if request.method == 'GET':
         form = DynamicForm(form_group=form_group, initial_values = initial_values)
@@ -129,15 +142,32 @@ def sample_edit(request, sample_id):
         if form.is_valid():
             for m in mappings:
                 data[m.variable_name] = form.cleaned_data.get(m.variable_name)
+            # Handle organism_type
+            if 'organism_type' in data:
+                organism_type_value = data.pop('organism_type')
+                try:
+                    organism_type_instance = OrganismType.objects.get(id=organism_type_value)
+                    data['organism_type'] = organism_type_instance
+                except OrganismType.DoesNotExist:
+                    raise ValueError(f"OrganismType with value '{organism_type_value}' does not exist.")
+                
+            # Handle owner
+            if 'owner' in data:
+                owner_value = data.pop('owner')
+                try:
+                    owner_instance = UserProfile.objects.get(auth_user__username=owner_value)
+                    data['owner'] = owner_instance
+                except UserProfile.DoesNotExist:
+                    raise ValueError(f"UserProfile with username '{owner_value}' does not exist.")
             data['id'] = sample.id
-            save_sample(data, 'single')
+            sample_id = sample.id  # Assuming ID is a required field
+            sample, created = Sample.objects.update_or_create(id=sample_id, defaults=data)
             messages.success(request, f'Sample {sample.id} is updated successfully!')
         else:
             messages.warning(request, 'Update failed.')
         return redirect('sample_detail', pk=sample.id)
 
 def sample_discard(request, sample_id):
-    print("IN SAMPLE DELETE")
     sample = get_object_or_404(Sample, id=sample_id)
     if request.method == 'POST':
         form = ConfirmationForm(request.POST, confirm_message=f'Are you sure you want to discard sample {sample.id}?')
@@ -148,23 +178,115 @@ def sample_discard(request, sample_id):
                 messages.success(request, f'Sample {sample.id} discarded!')
                 return redirect('sample_list')  # Replace 'sample_list' with your actual view name
             else:
+                messages.info(request, "Discard action cancelled.")
                 return redirect('sample_detail', pk=sample.id)
     else:
         form = ConfirmationForm(request.POST, confirm_message=f'Are you sure you want to discard sample {sample.id}?')
     return render(request, 'KauffmanLabApp/confirmation_page.html', {'form': form, 'sample': sample})
 
-# TODO: diplay values from storage table. filters working fine.
-@login_required
-def sample_list(request):
-    # Clearing session data
-    session_data = list(VariableLabelMapping.objects.values_list('variable_name', flat=True))
-    for s in session_data:
-        if s in request.session:
-            del request.session[s]
+def sample_delete(request, sample_list):
+    samples_to_delete = Sample.objects.filter(id__in=sample_list)
+    samples_to_delete_discarded = Sample.objects.filter(id__in=sample_list, is_discarded=True)
+    if request.method == 'POST':
+        form = ConfirmationForm(request.POST)
+        if form.is_valid():
+            if form.cleaned_data['confirm']:
+                samples_to_delete.delete()
+                messages.success(request, f"{len(sample_list)} discarded samples deleted successfully.")
+                return redirect('sample_list')
+            else:
+                messages.info(request, "Deletion canceled.")
+                return redirect('sample_list')  # Redirect or render another page if canceled
+    else:
+        samples_to_delete_ids = list(samples_to_delete.values_list('id', flat=True))
+        samples_to_delete_discarded_ids = list(samples_to_delete_discarded.values_list('id', flat=True))
+        samples_to_delete_not_discarded_ids = list(set(samples_to_delete_ids) - set(samples_to_delete_discarded_ids))
 
-    sample_filter = SampleFilter(request.GET, queryset=Sample.objects.all().order_by('id'))
+        if samples_to_delete_not_discarded_ids:
+            confirm_message = (
+                            f"Are you sure you want to delete the samples?\n"
+                            f"<br/> Actions:"
+                            f"<ul>"
+                            f"  <li>Delete Samples:<ul>{sample_list}</ul></li>"
+                            f"  <li>Samples that are not discarded:<ul>{samples_to_delete_not_discarded_ids}</ul></li>"
+                            f"</ul>"
+                        )
+        else:
+            confirm_message = (
+                            f"Are you sure you want to delete the samples?\n"
+                            f"<br/> Actions:"
+                            f"<ul>"
+                            f"  <li>Delete Samples:<ul>{samples_to_delete_ids}</ul></li>"
+                            f"</ul>"
+                        )
+        form = ConfirmationForm(request.POST, confirm_message=confirm_message)
+
+    return render(request, 'KauffmanLabApp/confirmation_page.html', {'form': form})
+
+@login_required
+def sample_list(request, samples=None):
+    # Handling selections in the GET request
+    selections = request.GET.getlist('selection')
+    action = request.GET.get('action')    
+    if action or selections:
+        if action == 'add_bulk_storage':
+            selections = request.GET.getlist('selection')
+            sample_list = request.session.get('sample_list', [])
+            if not sample_list and selections:
+                sample_list = selections              
+            return add_bulk_storage(request, sample_list)
+        elif action == 'export_csv':
+            sample_list = request.session.get('sample_list', [])
+            return export_excel_csv(request, sample_list, action)
+        elif action == 'export_excel':
+            sample_list = request.session.get('sample_list', [])
+            return export_excel_csv(request, sample_list, action)
+        elif action == 'save_selection':
+            sample_list = request.session.get('sample_list', [])
+            sample_list.extend(selections)
+            sample_list=list(set(sample_list))
+            request.session['sample_list'] = sample_list
+            request.session.save()
+            messages.success(request, f'Selected samples: {sample_list} saved')
+        elif action == 'clear_selection':
+            clear_session_data(request)
+            messages.success(request, f'Sample selection cleared')
+        elif action == 'sample_delete':
+            selections = request.GET.getlist('selection')
+            sample_list = request.session.get('sample_list', [])
+            if not sample_list and selections:
+                sample_list = selections              
+            return sample_delete(request, sample_list)
+            
+    
+    # Get all samples
+    if samples==None:
+        samples = Sample.objects.all()
+
+    # Handle search filtering
+    search_query = request.GET.get('search')
+    if search_query:
+        samples = get_search_results(samples, search_query)
+        
+    # Handle sorting
+    sort_by_col = request.GET.get('sort', 'id')
+    if sort_by_col in [
+        'benchling_link', 'general_comments', 'genetic_modifications', 'id', 'is_discarded', 'is_purchased', 
+        'is_sequenced', 'is_undermta', 'lab_lotno', 'label_note', 'labnb_pgno', 'material_type', 
+        'organism_type', 'organism_type_id', 'owner', 'owner_id', 'parent_name', 'source_lotno', 
+        'source_name', 'source_recommendedmedia', 'species', 'status', 'storage_id', 'storage_id_id', 
+        'storage_solution', 'strain_link', 'strainname_atcc', 'strainname_core', 'strainname_main', 'strainname_other'
+    ]:
+        samples = samples.order_by('-'+sort_by_col)
+    else:
+        messages.info(request, 'Sorry! I cannot sort by storage related field')
+        samples = samples.order_by('-id')
+
+    # Apply filters
+    sample_filter = SampleFilter(request.GET, queryset=samples)
     samples = sample_filter.qs
-    # pagination
+
+    # Pagination
     p = Paginator(samples, 15)
     page = request.GET.get('page')
     samples = p.get_page(page)
@@ -173,51 +295,68 @@ def sample_list(request):
 
     query_params = request.GET.copy()
     query_params.pop('page', None)  # Remove the 'page' parameter if present
-    query_string = query_params.urlencode()
-    return render(request, 'KauffmanLabApp/sample_list.html', {'sample_filter': sample_filter, 'table': table, 'samples': samples, 'num_pgs':num_pgs, 'query_params': query_string})
+    query_string = query_params.urlencode()            
+    return render(request, 'KauffmanLabApp/sample_list.html', {'sample_filter': sample_filter, 'table': table, 'samples': samples, 'num_pgs':num_pgs, 'query_params': query_string, 'search_form': SampleSearchForm(request.GET),})
 
-# TODO: Export samples selected on multiple pages
-def sample_csv(request):
-    selections = request.GET.getlist('selection')
-    print('selections', selections)
+def get_search_results(samples, search_query):
+    samples = samples.filter(
+            Q(id__icontains=search_query) |
+            Q(labnb_pgno__icontains=search_query) |
+            Q(label_note__icontains=search_query) |
+            Q(organism_type__organism_type__icontains=search_query) |
+            Q(material_type__icontains=search_query) |
+            Q(status__icontains=search_query) |
+            Q(storage_solution__icontains=search_query) |
+            Q(lab_lotno__icontains=search_query) |
+            Q(owner__auth_user__username__icontains=search_query) |
+            Q(benchling_link__icontains=search_query) |
+            Q(parent_name__icontains=search_query) |
+            Q(general_comments__icontains=search_query) |
+            Q(genetic_modifications__icontains=search_query) |
+            Q(species__icontains=search_query) |
+            Q(strainname_main__icontains=search_query) |
+            Q(strainname_core__icontains=search_query) |
+            Q(strainname_other__icontains=search_query) |
+            Q(strainname_atcc__icontains=search_query) |
+            Q(strain_link__icontains=search_query) |
+            Q(source_name__icontains=search_query) |
+            Q(source_lotno__icontains=search_query) |
+            Q(source_recommendedmedia__icontains=search_query) |
+            Q(storage_id__university_name__university_name__icontains=search_query) |
+            Q(storage_id__room_number__room_number__icontains=search_query) |
+            Q(storage_id__storage_unit__storage_unit__icontains=search_query) |
+            Q(storage_id__shelf__shelf__icontains=search_query) |
+            Q(storage_id__rack__rack__icontains=search_query) |
+            Q(storage_id__box__icontains=search_query) |
+            Q(storage_id__unit_type__icontains=search_query)
+        )
+    return samples
+
+def export_excel_csv(request, selections=None, action='export_excel'):
     sample_filter = SampleFilter(request.GET, queryset=Sample.objects.all())
-
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="samples.csv"'
-
-    writer = csv.writer(response)
-    writer.writerow([
-        'ID', 'Lab NB Page No', 'Label Note', 'Organism Type', 'Material Type', 'Status',
-        'Storage Solution', 'Lab Lot No', 'Owner', 'Benchling Link', 'Is Sequenced',
-        'Parent Name', 'General Comments', 'Genetic Modifications', 'Species',
-        'Strain Name Main', 'Strain Name Core', 'Strain Name Other', 'Strain Name ATCC',
-        'Strain Link', 'Source Name', 'Is Purchased', 'Source Lot No', 'Is Under MTA',
-        'Source Recommended Media', 'Is Discarded', 'University Name', 'Room Number', 'Storage Unit',
-        'Shelf', 'Rack', 'Unit Type'
-    ])
-
-    if request.GET:
-        selections = request.GET.getlist('selection')
-        if selections:
-            selected_samples = Sample.objects.filter(id__in=selections)
-        else:
-            selected_samples = sample_filter.qs
+    if request and request.GET:
+            selections = request.GET.getlist('selection')
+            if selections:
+                samples = Sample.objects.filter(id__in=selections)
+            else:
+                samples = sample_filter.qs
     else:
-        selected_samples = Sample.objects.all()
+        samples = Sample.objects.all()
 
-    for sample in selected_samples:
-        writer.writerow([
-            sample.id,
+    export_samples = []
+    for sample in samples:
+        export_samples.append(
+            [sample.id,
             sample.labnb_pgno,
             sample.label_note,
-            sample.organism_type,
+            sample.organism_type.organism_type if sample.organism_type else '',
             sample.material_type,
             sample.status,
             sample.storage_solution,
             sample.lab_lotno,
-            sample.owner,
+            sample.owner.user_short if sample.owner else '',
             sample.benchling_link,
-            sample.is_sequenced,
+            'Yes' if sample.is_sequenced else 'No',
             sample.parent_name,
             sample.general_comments,
             sample.genetic_modifications,
@@ -228,24 +367,79 @@ def sample_csv(request):
             sample.strainname_atcc,
             sample.strain_link,
             sample.source_name,
-            sample.is_purchased,
+            'Yes' if sample.is_purchased else 'No',
             sample.source_lotno,
-            sample.is_undermta,
+            'Yes' if sample.is_undermta else 'No',
             sample.source_recommendedmedia,
-            sample.is_discarded,
+            'Yes' if sample.is_discarded else 'No',
             sample.storage_id.university_name.university_name if sample.storage_id and sample.storage_id.university_name else '',
             sample.storage_id.room_number.room_number if sample.storage_id and sample.storage_id.room_number else '',
             sample.storage_id.storage_unit.storage_unit if sample.storage_id and sample.storage_id.storage_unit else '',
             sample.storage_id.shelf.shelf if sample.storage_id and sample.storage_id.shelf else '',
             sample.storage_id.rack.rack if sample.storage_id and sample.storage_id.rack else '',
-            sample.storage_id.unit_type if sample.storage_id else '',
+            sample.storage_id.box if sample.storage_id else '',
+            sample.storage_id.unit_type if sample.storage_id else ''
+            ]
+        )
+
+    if action == 'export_csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="samples.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow([
+            'ID', 'Lab NB Page No', 'Label Note', 'Organism Type', 'Material Type', 'Status',
+            'Storage Solution', 'Lab Lot No', 'Owner', 'Benchling Link', 'Is Sequenced',
+            'Parent Name', 'General Comments', 'Genetic Modifications', 'Species',
+            'Strain Name Main', 'Strain Name Core', 'Strain Name Other', 'Strain Name ATCC',
+            'ATCC Link', 'Source Name', 'Is Purchased', 'Source Lot No', 'Is Under MTA',
+            'Source Recommended Media', 'Is Discarded', 'University Name', 'Room Number', 'Storage Unit',
+            'Shelf', 'Rack', 'Box', 'Unit Type'
         ])
 
-    return response
+        for s in export_samples:
+            writer.writerow(s)
+        return response
+
+    elif action == 'export_excel' or action == 'export_excel_for_bakcup':
+        file_path = os.path.join(settings.MEDIA_ROOT, 'files/excel_import_template.xlsx')
+        workbook = load_workbook(file_path)
+        worksheet = workbook['Strain Data']
+
+        for s in export_samples:
+            worksheet.append(s)
+        
+        workbook.active = workbook['Strain Data']
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = f'attachment; filename="{str(datetime.datetime.now().year)[-2:]}{datetime.datetime.now().timetuple().tm_yday}.samples.xlsx"'
+        
+        if action == 'export_excel_for_bakcup':
+            backup_file_path = os.path.join(settings.MEDIA_ROOT, f'backup_files/{str(datetime.datetime.now().year)[-2:]}{datetime.datetime.now().timetuple().tm_yday}.samples_backup.xlsx')
+            workbook.save(backup_file_path)
+            return backup_file_path
+        else:
+            workbook.save(response)
+            return response    
+
+def save_storage_data_to_session(request, storage_instance):
+    for field in storage_instance._meta.get_fields():
+        value = getattr(storage_instance, field.name)
+        if field.auto_created and not field.concrete:
+            continue
+        if isinstance(field, ForeignKey):
+            if value:
+                request.session[field.name] = value.pk
+            else:
+                request.session[field.name] = None
+        else:
+            request.session[field.name] = value
+    request.session.save()
 
 def sample_detail(request, pk):
     request.session['sample_list'] = [pk]
     sample = get_object_or_404(Sample, pk=pk)
+    if sample.storage_id:
+        save_storage_data_to_session(request, sample.storage_id)
     column_mapping = {
         "ID": sample.id,
         "Lab NB Page Number": sample.labnb_pgno,
@@ -286,12 +480,10 @@ def sample_detail(request, pk):
             "Storage Unit": storage.storage_unit,
             "Shelf": storage.shelf,
             "Rack": storage.rack,
+            "Box": storage.box,
             "Unit Type": storage.unit_type,
         }
     return render(request, 'KauffmanLabApp/sample_detail.html', {'sample': sample, 'column_mapping': column_mapping, 'storage_mapping': storage_mapping,})
-
-def display_alert(request, alert_type=None, alert_msg=None):
-    return render(request, 'KauffmanLabApp/alerts.html', {'alert_type': alert_type, 'alert_msg': alert_msg})
 
 # TODO: modify it as per new DB
 def sample_pdf(request, selected_items = None):
@@ -350,28 +542,56 @@ def sample_pdf(request, selected_items = None):
     doc.build([table])
     return response
 
-# TODO: import from excel function
 def upload_excel(request):
     if request.method == 'POST':
-        form = ExcelUploadForm(request.POST, request.FILES)
-        if form.is_valid():
-            print('request.FILES', request.FILES)
-            excel_file = request.FILES['excel_file']
-            try:
-                # Process the uploaded Excel file
-                process_excel_file(request, excel_file)
-
-                # Assuming the form contains only one file field named 'excel_file'
+        if 'excel_file' in request.FILES:
+            form = ExcelUploadForm(request.POST, request.FILES)
+            if form.is_valid():
                 messages.success(request, "File Uploaded Successfully")
-            except Exception as e:
-                messages.error(request, str(e))
-            
-            # return render(request, 'KauffmanLabApp/sample_list.html')
-            return redirect('sample_list')
+                excel_file = request.FILES['excel_file']
+                temp_file = tempfile.NamedTemporaryFile(delete=False)
+                temp_file.write(excel_file.read())
+                temp_file.close()
+                request.session['excel_file_path'] = temp_file.name
+                request.session['excel_file_name'] = excel_file.name
+                existing_samples, new_samples = check_existing_new_samples(request, excel_file)
+                if existing_samples or new_samples:
+                    existing_samples_list = ''.join(f'<li>{sample}</li>' for sample in existing_samples)
+                    new_samples_list = ''.join(f'<li>{sample}</li>' for sample in new_samples)
+                    confirm_message = (
+                        f"Are you sure you want to import data from {excel_file.name}?\n"
+                        f"<br/> Actions:"
+                        f"<ul>"
+                        f"  <li>Update Samples:<ul>{existing_samples_list}</ul></li>"
+                        f"  <li>Add Samples:<ul>{new_samples_list}</ul></li>"
+                        f"</ul>"
+                    )
+                    form = ConfirmationForm(request.POST, confirm_message=confirm_message)
+                    return render(request, 'KauffmanLabApp/confirmation_page.html', {'form': form})
+                else:
+                    return redirect('sample_list')
+            else:
+                for _, error in form.errors.items():
+                    messages.error(request, error.as_text())
         else:
-            print("Errors", form.errors)
-            for _, error in form.errors.items():
-                messages.error(request, error.as_text())
+            form = ConfirmationForm(request.POST)
+            if form.is_valid() and form.cleaned_data['confirm']:
+                # Retrieve the file from session
+                excel_file_path = request.session.get('excel_file_path')
+                excel_file_name = request.session.get('excel_file_name')
+                with open(excel_file_path, 'rb') as f:
+                        excel_file_content = ContentFile(f.read(), name=excel_file_name)
+                try:
+                    # Process the uploaded Excel file
+                    process_excel_file(request, excel_file_content)
+                except Exception as e:
+                    messages.error(request, str(e))
+                finally:
+                    os.remove(excel_file_path)
+                return redirect('sample_list')
+            else:
+                messages.info(request, "File upload cancelled.")
+                return redirect('sample_list')
     else:
         form = ExcelUploadForm()
     return render(request, 'KauffmanLabApp/upload_excel.html', {'form': form})
@@ -387,7 +607,28 @@ def convert_yes_no_to_boolean(value):
             return False
     return value
 
-# TODO: import from excel function
+def check_existing_new_samples(request, excel_file):
+    sheet_name = 'Strain Data'
+    existing_samples = []
+    new_samples = []
+    try:
+        df = pd.read_excel(excel_file, sheet_name=sheet_name)
+    except:
+        messages.error(request, "Incorrect excel file template")
+        return existing_samples, new_samples
+    ids = df['ID'].tolist()
+
+    # Iterate over rows and import data into the database
+    for sample_id in ids:
+        # Check if the sample already exists
+        try:
+            sample = Sample.objects.get(id=sample_id)
+            existing_samples.append(sample_id)
+        except Sample.DoesNotExist:
+            new_samples.append(sample_id)
+
+    return existing_samples, new_samples
+
 def process_excel_file(request, excel_file):
     # Define mapping of Excel column names to Django model field names
     excel_to_django_field_map = {
@@ -422,12 +663,13 @@ def process_excel_file(request, excel_file):
     'Storage Unit': 'storage_id.storage_unit',
     'Shelf': 'storage_id.shelf',
     'Rack': 'storage_id.rack',
+    'Box': 'storage_id.box',
     'Unit Type': 'storage_id.unit_type',
     }
 
     # Read Excel file into a DataFrame
     sheet_name = 'Strain Data'
-    df = pd.read_excel(excel_file, sheet_name=sheet_name)
+    df = pd.read_excel(excel_file, sheet_name=sheet_name if sheet_name else 'Sheet1')
 
     # Iterate over rows and import data into the database
     for index, row in df.iterrows():
@@ -448,11 +690,8 @@ def process_excel_file(request, excel_file):
         sample_data = replace_nan_with_blank(sample_data)
         storage_data = replace_nan_with_blank(storage_data)
 
-        print('sample_data', sample_data)
-        print('storage_data', storage_data)
-
         # Create or get related Storage object
-        if not any(value == '' for value in storage_data.values()):
+        if storage_data['university_name'] is not None and storage_data['room_number'] is not None and storage_data['storage_unit'] is not None:
             try:
                 # Lookup for University
                 university = University.objects.get(university_name=storage_data.pop('university_name'))
@@ -494,9 +733,9 @@ def process_excel_file(request, excel_file):
             
             except (University.DoesNotExist, Room.DoesNotExist, StorageUnit.DoesNotExist, Shelf.DoesNotExist, Rack.DoesNotExist) as e:
                 # Handle the case where any of the objects do not exist
-                print(f"One or more related objects do not exist: {e}")
+                messages.warning(request, f"One or more related objects do not exist: {e}")
         else:
-            print("Skipping processing due to empty values in storage_data.")
+            messages.warning(request, "Skipping processing due to empty values in storage_data.")
 
         # Handle foreign keys for OrganismType and UserProfile
         if 'organism_type' in sample_data and sample_data['organism_type'] != '':
@@ -508,23 +747,18 @@ def process_excel_file(request, excel_file):
         sample_id = sample_data.pop('id')  # Assuming ID is a required field
         sample, created = Sample.objects.update_or_create(id=sample_id, defaults=sample_data)
     messages.success(request, 'Import completed successfully.')
-    print("Import completed successfully.")
 
 def download_excel_template(request):
     file_path = os.path.join(settings.MEDIA_ROOT, 'files/excel_import_template.xlsx')
-    print(file_path)
     if os.path.exists(file_path):
         return FileResponse(open(file_path, 'rb'), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, filename='template.xlsx')
     else:
         return HttpResponse("File not found.", status=404)
 
+@user_passes_test(lambda u: u.is_staff)
 def form_view(request, form_group):
-    print('+++++++++++++++++form_group', request, form_group)
+    print('#### form_group ####', request.method, form_group)
     form_group_mapping = {
-        # 'sample_insert_type': {
-        #     'keys': 'entry_type',
-        #     'next': lambda request.session[key]: 'sample_insert_single' if request.session[key] == '1' else 'sample_insert_bulk'
-        # },
         'sample_insert_single': {
             'key': 'id',
             'next': 'sample_form'
@@ -533,10 +767,6 @@ def form_view(request, form_group):
             'keys': ['start_id', 'end_id'],
             'next': 'sample_form'
         },
-        # 'sample_form': {
-        #     'keys': [],  # Handled separately
-        #     'next': '/'
-        # },
         'storage_samples': {
             'key': 'sample_list',
             'next': 'storage_university'
@@ -561,10 +791,9 @@ def form_view(request, form_group):
             'key': 'rack',
             'next': 'storage_unit_type'
         },
-        # 'storage_unit_type':{
-        #     'key': 'unit_type',
-        #     'next': '/'
-        # }
+        'storage_unit_type': { #this is just for getting 'box', 'unit_type' from session
+            'keys' : ['box', 'unit_type']
+        }
     }
     if request.method == 'POST':
         form = DynamicForm(request.POST, request.FILES, form_group=form_group)
@@ -579,7 +808,8 @@ def form_view(request, form_group):
                     key = mapping['key']
                     request.session[key] = form.cleaned_data.get(key)
                 next_form_group = mapping.get('next', '')
-                return redirect('form_view', next_form_group)
+                if next_form_group:
+                    return redirect('form_view', next_form_group)
 
         #=================+#
             if form_group=='sample_insert_type':
@@ -613,8 +843,11 @@ def form_view(request, form_group):
                 return redirect('/')
             
             elif form_group=='storage_unit_type':
+                box = form.cleaned_data.get('box')
                 unit_type = form.cleaned_data.get('unit_type')
+                request.session['box'] = box
                 request.session['unit_type'] = unit_type
+                request.session.save()
                 save_storage(request)
                 return redirect('/')
     else:
@@ -634,8 +867,7 @@ def form_view(request, form_group):
         if form_group.startswith('storage_'):
             # Retrieve filter data from session for storage forms
             filter_kwargs = set_filtered_dropdown(request, form_group)
-        form = DynamicForm(form_group=form_group, filter_kwargs = filter_kwargs, initial_values=initial_values)
-    
+        form = DynamicForm(form_group=form_group, filter_kwargs = filter_kwargs, initial_values=initial_values)  
     form_header = get_form_header(form_group)
     return render(request, 'KauffmanLabApp/form.html', {'form': form, 'form_group': form_group, 'form_header': form_header})
 
@@ -690,18 +922,15 @@ def save_sample(data, save_sample_type):
             new_sample = Sample(**data)
             new_sample.save()
 
-def save_storage(request):
-    model_fields = [field.name for field in Storage._meta.get_fields()]
-    model_fields.remove('id')
-    sample_list = request.session.get('sample_list')
+def get_storage_data_from_session(request):
     storage_data = {}
     fields_info = []
     for field in Storage._meta.get_fields():
         if isinstance(field, ForeignKey):
             fields_info.append({
-                    'field_name': field.name,
-                    'fk_model': field.related_model.__name__
-                })
+                'field_name': field.name,
+                'fk_model': field.related_model.__name__
+            })
         storage_data[field.name] = request.session.get(field.name)
     for field_info in fields_info:
         field_name = field_info['field_name']
@@ -714,16 +943,50 @@ def save_storage(request):
                 storage_data[field_name] = instance
             except fk_model.DoesNotExist:
                 storage_data[field_name] = None
+    return storage_data
 
-    for sample in sample_list:
-        sample, created = Sample.objects.get_or_create(id=sample)
-        if sample.storage_id:
-            messages.warning(request, f'Sample {sample.id} already has a storage')
-            continue
-        storage = Storage(**storage_data)
-        storage.save()
-        sample.storage_id = storage
-        sample.save()
+def save_storage(request):
+    # Retrieve sample list and storage data from session
+    sample_list = request.session.get('sample_list', [])
+    storage_data = get_storage_data_from_session(request)
+    updated_samples = []
+    added_samples = []
+    
+    try:
+        with transaction.atomic():
+            for sample_id in sample_list:
+                sample, created = Sample.objects.get_or_create(id=sample_id)
+                
+                if sample.storage_id:
+                    storage_data['sample'] = sample
+                    storage_data['id'] = sample.storage_id.id
+                    storage = Storage.objects.get(id=sample.storage_id.id)
+                    for key, value in storage_data.items():
+                        setattr(storage, key, value)
+                    storage.save()
+                    updated_samples.append(sample_id)
+                else:
+                    storage = Storage.objects.create(**storage_data)
+                    storage.save()
+                    sample.storage_id = storage
+                    sample.save()
+                    added_samples.append(sample_id)
+                
+        # Prepare success messages
+        if added_samples:
+            added_samples_str = ', '.join(map(str, added_samples))
+            messages.success(request, f'Success: ADDED storage info for {added_samples_str}')
+
+        if updated_samples:
+            updated_samples_str = ', '.join(map(str, updated_samples))
+            messages.success(request, f'Success: UPDATED storage info for {updated_samples_str}')
+    
+    except Exception as e:
+        messages.error(request, f'Error saving storage info: {e}')
+
+def add_bulk_storage(request, selections):
+    request.session['sample_list'] = selections
+    return redirect('form_view', form_group='storage_samples')
 
 def get_bulk_sample_ids(start_id, end_id):
     start = int(start_id.split('.')[-1])
@@ -732,3 +995,12 @@ def get_bulk_sample_ids(start_id, end_id):
     prefix = '.'.join(prefix_parts) + '.'
     sample_ids = [f"{prefix}{i:03d}" for i in range(start, end + 1)]
     return sample_ids
+
+def backup_and_upload(request):
+    result = subprocess.run(['python', 'KauffmanLabApp/backup_database.py'], capture_output=True, text=True)
+    if result.returncode == 0:
+        messages.success(request, "Backup successfull")
+        return redirect('admin_panel')
+    else:
+        messages.error(request, "Backup failed")
+        return redirect('admin_panel')
