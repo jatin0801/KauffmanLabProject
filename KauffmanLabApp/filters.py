@@ -46,6 +46,7 @@ class SampleFilter(django_filters.FilterSet):
     shelf = django_filters.ChoiceFilter(field_name='storage_id__shelf__shelf', choices = shelf_choices, label='Shelf')
     rack = django_filters.ChoiceFilter(field_name='storage_id__rack__rack', choices = rack_choices, label='Rack')
     box = django_filters.CharFilter(field_name='storage_id__box', lookup_expr='icontains', label='Box')
+
     unit_type = django_filters.CharFilter(field_name='storage_id__unit_type', lookup_expr='icontains', label='Unit Type')
 
     class Meta:
@@ -64,3 +65,4 @@ class SampleFilter(django_filters.FilterSet):
                 'style': 'max-width: 200px;'  # Adjust width as needed
             })
         return form
+

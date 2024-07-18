@@ -12,6 +12,7 @@ from django.apps import apps
 from .tables import SampleStorageTable
 from .filters import SampleFilter
 from .forms import DynamicForm, ConfirmationForm, UserRegistrationForm, ExcelUploadForm, SampleSearchForm
+
 import csv
 import pandas as pd
 import numpy as np
@@ -23,6 +24,7 @@ from django.http import HttpResponse, FileResponse
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
 import subprocess
+
 
 # Export csv/pdf stuff
 from reportlab.lib.pagesizes import letter, landscape
@@ -38,6 +40,7 @@ from django.core.paginator import Paginator
 
 from django.db.models import Prefetch, Subquery, F
 from django.db.models import Q
+
 
 
 def generate_sample_id(user_id, material_type, tube_id): #make tube_id 3 digit no
@@ -223,6 +226,7 @@ def sample_delete(request, sample_list):
 
     return render(request, 'KauffmanLabApp/confirmation_page.html', {'form': form})
 
+# TODO: diplay values from storage table. filters working fine.
 @login_required
 def sample_list(request, samples=None):
     # Handling selections in the GET request
@@ -468,7 +472,6 @@ def sample_detail(request, pk):
         "Source Recommended Media": sample.source_recommendedmedia,
         "Storage ID": sample.storage_id,
     }
-
     storage = sample.storage_id
 
     # Create a dictionary with storage data if storage is not None
@@ -484,6 +487,7 @@ def sample_detail(request, pk):
             "Unit Type": storage.unit_type,
         }
     return render(request, 'KauffmanLabApp/sample_detail.html', {'sample': sample, 'column_mapping': column_mapping, 'storage_mapping': storage_mapping,})
+
 
 # TODO: modify it as per new DB
 def sample_pdf(request, selected_items = None):
@@ -542,6 +546,7 @@ def sample_pdf(request, selected_items = None):
     doc.build([table])
     return response
 
+# TODO: import from excel function
 def upload_excel(request):
     if request.method == 'POST':
         if 'excel_file' in request.FILES:
@@ -671,6 +676,7 @@ def process_excel_file(request, excel_file):
     sheet_name = 'Strain Data'
     df = pd.read_excel(excel_file, sheet_name=sheet_name if sheet_name else 'Sheet1')
 
+
     # Iterate over rows and import data into the database
     for index, row in df.iterrows():
         sample_data = {}
@@ -750,6 +756,7 @@ def process_excel_file(request, excel_file):
 
 def download_excel_template(request):
     file_path = os.path.join(settings.MEDIA_ROOT, 'files/excel_import_template.xlsx')
+
     if os.path.exists(file_path):
         return FileResponse(open(file_path, 'rb'), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, filename='template.xlsx')
     else:
@@ -868,6 +875,7 @@ def form_view(request, form_group):
             # Retrieve filter data from session for storage forms
             filter_kwargs = set_filtered_dropdown(request, form_group)
         form = DynamicForm(form_group=form_group, filter_kwargs = filter_kwargs, initial_values=initial_values)  
+
     form_header = get_form_header(form_group)
     return render(request, 'KauffmanLabApp/form.html', {'form': form, 'form_group': form_group, 'form_header': form_header})
 
@@ -1004,3 +1012,4 @@ def backup_and_upload(request):
     else:
         messages.error(request, "Backup failed")
         return redirect('admin_panel')
+

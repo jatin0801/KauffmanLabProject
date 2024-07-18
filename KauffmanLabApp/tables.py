@@ -45,6 +45,7 @@ class SampleStorageTable(tables.Table):
     box = tables.Column(accessor='storage_id.box', verbose_name='Box', empty_values=())
     unit_type = tables.Column(accessor='storage_id.unit_type', verbose_name='Unit Type', empty_values=())
 
+
     class Meta:
         model = Sample
         template_name = 'django_tables2/bootstrap.html'

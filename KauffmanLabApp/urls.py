@@ -20,6 +20,7 @@ urlpatterns = [
     path('form/<str:form_group>/', views.form_view, name='form_view'),
     path('download_excel_template/', views.download_excel_template, name='download_excel_template'),
     path('backup-and-upload/', views.backup_and_upload, name='backup_and_upload'),
+
 ]
 
 if settings.DEBUG:

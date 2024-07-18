@@ -33,6 +33,7 @@ class DynamicForm(forms.Form):
                     'required': mapping.field_required,
                     'initial': self.initial_values[mapping.variable_name] if(self.initial_values and self.initial_values[mapping.variable_name]) else None,
                     'help_text': f'Prefix: {str(datetime.datetime.now().year)[-2:]}{datetime.datetime.now().timetuple().tm_yday} Format: {str(datetime.datetime.now().year)[-2:]}{datetime.datetime.now().timetuple().tm_yday}.(user_code).(material_type)(tube_id) Example: 21296.K21.GT001' if mapping.variable_name == 'id' or mapping.variable_name == 'start_id' or mapping.variable_name == 'end_id'  else mapping.help_text,
+
                 }
                 if mapping.choice_table:
                     model_name = mapping.choice_table
@@ -45,10 +46,12 @@ class DynamicForm(forms.Form):
                 elif mapping.choices:
                     choices = [(choice.id, choice.choice_text) for choice in mapping.choices.all()]
 
+
                 # Prepend the placeholder option
                 if not field_kwargs['initial']:
                     choices.insert(0, ('', '--- Select an option ---'))
                 
+
                 if mapping.field_type == 'char':
                     self.fields[mapping.variable_name] = forms.CharField(
                         **field_kwargs, max_length=100, widget=forms.TextInput(attrs={'class': 'form-control'})
@@ -120,3 +123,4 @@ class ConfirmationForm(forms.Form):
 
 class SampleSearchForm(forms.Form):
     search = forms.CharField(required=False, label='Search', widget=forms.TextInput(attrs={'class': 'form-control'}))
+

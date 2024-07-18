@@ -54,6 +54,7 @@ class Storage(models.Model):
     box = models.CharField(max_length=255, blank=True, null=True)
     unit_type = models.CharField(max_length=255, blank=True, null=True)
 
+
     def __str__(self):
             return f'{self.rack} -> {self.unit_type}'
 
@@ -108,6 +109,7 @@ class Sample(models.Model):
     source_recommendedmedia = models.CharField(max_length=255, blank=True, null=True)
     is_discarded = models.BooleanField(default=False, blank=True, null=True)
     storage_id = models.OneToOneField(Storage, null = True, on_delete = models.CASCADE)
+
 
     def __init__(self, *args, **kwargs):
         super(Sample, self).__init__(*args, **kwargs)
