@@ -28,12 +28,12 @@ class DynamicForm(forms.Form):
         if self.form_group:
             mappings = VariableLabelMapping.objects.filter(form_group=self.form_group).order_by('order_no')
             for mapping in mappings:
-                # print(mapping.label_name, self.initial_values[mapping.variable_name], type(self.initial_values[mapping.variable_name]))
                 field_kwargs = {
                     'label': mapping.label_name,
                     'required': mapping.field_required,
                     'initial': self.initial_values[mapping.variable_name] if(self.initial_values and self.initial_values[mapping.variable_name]) else None,
-                    'help_text': f'Prefix: {str(datetime.datetime.now().year)[-2:]}.{datetime.datetime.now().timetuple().tm_yday}' if mapping.variable_name == 'id' or mapping.variable_name == 'start_id' or mapping.variable_name == 'end_id'  else mapping.help_text,
+                    'help_text': f'Prefix: {str(datetime.datetime.now().year)[-2:]}{datetime.datetime.now().timetuple().tm_yday} Format: {str(datetime.datetime.now().year)[-2:]}{datetime.datetime.now().timetuple().tm_yday}.(user_code).(material_type)(tube_id) Example: 21296.K21.GT001' if mapping.variable_name == 'id' or mapping.variable_name == 'start_id' or mapping.variable_name == 'end_id'  else mapping.help_text,
+
                 }
                 if mapping.choice_table:
                     model_name = mapping.choice_table
@@ -45,12 +45,18 @@ class DynamicForm(forms.Form):
                         choices = [(getattr(choice, mapping.choice_id_field), getattr(choice, mapping.choice_text_field)) for choice in model.objects.all()]
                 elif mapping.choices:
                     choices = [(choice.id, choice.choice_text) for choice in mapping.choices.all()]
+
+
+                # Prepend the placeholder option
+                if not field_kwargs['initial']:
+                    choices.insert(0, ('', '--- Select an option ---'))
+                
+
                 if mapping.field_type == 'char':
                     self.fields[mapping.variable_name] = forms.CharField(
                         **field_kwargs, max_length=100, widget=forms.TextInput(attrs={'class': 'form-control'})
                     )
                 elif mapping.field_type == 'select':
-                    # choices = [(choice.id, choice.choice_text) for choice in mapping.choices.all()]
                     self.fields[mapping.variable_name] = forms.ChoiceField(
                         **field_kwargs, choices=choices, widget=forms.Select(attrs={'class': 'form-select'})
                     )
@@ -96,7 +102,6 @@ class UserRegistrationForm(forms.ModelForm):
     last_name = forms.CharField(max_length=30, widget=forms.TextInput(attrs={'class': 'form-control'}))
     email = forms.EmailField(widget=forms.EmailInput(attrs={'class': 'form-control'}))
     user_short = forms.CharField(max_length=5, widget=forms.TextInput(attrs={'class': 'form-control'}))
-    # university_name = forms.ChoiceField(widget=forms.Select(attrs={'class': 'form-select'}))
     university_name = forms.ModelChoiceField(queryset=University.objects.all(), widget=forms.Select(attrs={'class': 'form-select'}))
     
     class Meta:
@@ -115,3 +120,7 @@ class ConfirmationForm(forms.Form):
         super().__init__(*args, **kwargs)
         # self.fields['confirm'].label = confirm_message
         self.confirm_message = confirm_message
+
+class SampleSearchForm(forms.Form):
+    search = forms.CharField(required=False, label='Search', widget=forms.TextInput(attrs={'class': 'form-control'}))
+

@@ -14,6 +14,13 @@
 <body>
 {% block content %}
 <div class='sample-list-container'>
+    <div class="search-bar">
+        <form method="get" action="{% url 'sample_list' %}">
+            {{ search_form.as_p }}
+            <button type="submit" class="btn btn-primary">Search</button> &nbsp
+            <button type="button" class='btn btn-secondary' onclick="window.location.href=window.location.pathname;">Clear</button>
+        </form>
+    </div>
     <div class='filter-section'>
         <h4>Apply filters</h4>
         <hr/>
@@ -33,7 +40,8 @@
     </div>
     <div class='gap-section'></div>
     <div class='table-section'>
-        <form method="get" action="{% url 'sample_csv' %}">
+        <form method="get" action="">
+        {% comment %} <form method="get" action="{% url 'sample_csv' %}"> {% endcomment %}
             {% csrf_token %}
             {% for filter_name, filter_value in request.GET.items %}
                 <input type="hidden" name="{{ filter_name }}" value="{{ filter_value }}">
@@ -43,7 +51,7 @@
             </div>
             <br/>
 
-            <nav aria-label="Page navigation example">                    
+            <nav aria-label="Page navigation">                    
                 <ul class="pagination"> 
                 {% if samples.has_previous%}
                 <li class="page-item"><a class="page-link" href="?{{query_params}}&page=1">&laquo First</a></li>
@@ -66,16 +74,30 @@
                 {% endif %}
                 </ul>
             </nav>
-            
+            <button type="submit" name="action" value="save_selection" class="btn btn-primary">Save/View Selection</button>
+            <button type="submit" name="action" value="clear_selection" class="btn btn-secondary">Clear Selection</button>
             <br/>
             <br/>
-            <button type="submit" class="btn btn-primary">Export CSV</button>
+            <button type="submit" name="action" value="add_bulk_storage" class="btn btn-primary">Add Bulk Storage Details</button>
+            {% if request.user.is_superuser %}
+                <button type="submit" name="action" value="sample_delete" class="btn btn-danger">Delete Selected Samples</button>
+            {% endif %}
             <br/>
-            <hr/>
+            <br/>
+            <div class="dropdown">
+                <button class="btn btn-secondary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                  Export Data
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                  <li><button type="submit" name="action" value="export_csv" class="dropdown-item">Export CSV</button></li>
+                  <li><button type="submit" name="action" value="export_excel" class="dropdown-item">Export Excel</button></li>
+                </ul>
+            </div>
         </form>
-
+        <br/>
         <button type="submit" class="btn btn-primary" onclick="location.href='{% url 'download_excel_template' %}';">Download Excel Template</button>
         <button type="submit" class="btn btn-primary" onclick="location.href='{% url 'upload_excel' %}';">Import from Excel</button>
+        <br/>
         <br/>
     </div>
     <div class="clear"></div>

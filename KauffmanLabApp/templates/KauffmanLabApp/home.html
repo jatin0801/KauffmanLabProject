@@ -17,11 +17,24 @@
         <div class="content-container">
             <h2>Home Page</h2>
             <hr>
+            {% if request.user.is_superuser %}
+            <div class="card">
+                {% comment %} <h5 class="card-header">Featured</h5> {% endcomment %}
+                <div class="card-body">
+                    <h5 class="card-title">Admin Panel</h5>
+                    <p class="card-text">The Admin Panel allows administrators to efficiently manage users and data, delete discarded samples, and create backups. It provides a streamlined interface for viewing, editing, and organizing user accounts and data records, ensuring the system remains clean and secure.</p>
+                    <a href="{% url 'admin_panel' %}" class="btn btn-primary">Go</a>
+                    {% comment %} <a href="{% url 'admin:index' %}" class="btn btn-primary">Go</a> {% endcomment %}
+                </div>
+            </div>
+            {% endif %}
+            {% if request.user.is_staff or request.user.is_superuser %}
             <div class="card">
                 {% comment %} <h5 class="card-header">Featured</h5> {% endcomment %}
                 <div class="card-body">
                     <h5 class="card-title">Enter Sample Data</h5>
-                    <p class="card-text">Go to form for entering sample data</p>
+                    <p class="card-text">This section provides a form for quickly and easily inputting sample information into the system.</p>
+
                     <a href="{% url 'form_view' form_group='sample_insert_type' %}" class="btn btn-primary">Go</a>
                 </div>
             </div>
@@ -29,15 +42,17 @@
                 {% comment %} <h5 class="card-header">Featured</h5> {% endcomment %}
                 <div class="card-body">
                     <h5 class="card-title">Enter Storage Data</h5>
-                    <p class="card-text">Go to form for entering storage data</p>
+                    <p class="card-text">This section offers a form for efficiently inputting storage information into the system.</p>
+
                     <a href="{% url 'form_view' form_group='storage_samples' %}" class="btn btn-primary">Go</a>
                 </div>
             </div>
+            {% endif %}
             <div class="card">
                 {% comment %} <h5 class="card-header">Featured</h5> {% endcomment %}
                 <div class="card-body">
                     <h5 class="card-title">View Sample Data</h5>
-                    <p class="card-text">Apply filters and get the required sample data.</p>
+                    <p class="card-text">This section allows you to apply filters, sorting, and searching to find the required sample data. You can edit sample and storage data, add bulk storage data, and export/import data.</p>
                     <a href="{% url 'sample_list' %}" class="btn btn-primary">Go</a>
                 </div>
             </div>

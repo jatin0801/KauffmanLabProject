@@ -38,7 +38,6 @@ class SampleFilter(django_filters.FilterSet):
     room_number_choices = Room.objects.values_list('room_number', 'room_number')
     storage_unit_choices = StorageUnit.objects.values_list('storage_unit', 'storage_unit')
     shelf_choices = [(shelf.id, str(shelf)) for shelf in Shelf.objects.all()]
-    # rack_choices = [(rack.id, f'{rack.shelf} -> {rack.rack}') for rack in Rack.objects.all()]
     rack_choices = [(rack.id, str(rack)) for rack in Rack.objects.all()]
 
     university_name = django_filters.ChoiceFilter(field_name='storage_id__university_name__university_name', choices=university_name_choices, label='University Name')
@@ -46,8 +45,24 @@ class SampleFilter(django_filters.FilterSet):
     storage_unit = django_filters.ChoiceFilter(field_name='storage_id__storage_unit__storage_unit', choices = storage_unit_choices, label='Storage Unit')
     shelf = django_filters.ChoiceFilter(field_name='storage_id__shelf__shelf', choices = shelf_choices, label='Shelf')
     rack = django_filters.ChoiceFilter(field_name='storage_id__rack__rack', choices = rack_choices, label='Rack')
+    box = django_filters.CharFilter(field_name='storage_id__box', lookup_expr='icontains', label='Box')
+
     unit_type = django_filters.CharFilter(field_name='storage_id__unit_type', lookup_expr='icontains', label='Unit Type')
 
     class Meta:
         model = Sample
         fields = []
+
+    @property
+    def form(self):
+        form = super(SampleFilter, self).form
+        for field_name in form.fields:
+            classes = 'form-control'
+            if isinstance(form.fields[field_name], forms.ChoiceField):
+                classes = 'form-select'
+            form.fields[field_name].widget.attrs.update({
+                'class': classes,
+                'style': 'max-width: 200px;'  # Adjust width as needed
+            })
+        return form
+

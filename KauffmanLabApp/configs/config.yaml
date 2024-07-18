@@ -1,0 +1,264 @@
+sample_form:
+  - variable_name: labnb_pgno
+    label_name: Lab Notebook Page Number
+    field_type: char
+    field_required: true
+    order_no: 1
+    help_text: ''
+  - variable_name: label_note
+    label_name: Label Note
+    field_type: char
+    field_required: true
+    order_no: 2
+    help_text: ''
+  - variable_name: organism_type
+    label_name: Organism Type
+    field_type: select
+    choice_id_field: id
+    choice_table: OrganismType
+    choice_text_field: organism_type
+    field_required: true
+    order_no: 4
+    help_text: ''
+  - variable_name: material_type
+    label_name: Material Type
+    field_type: char
+    field_required: false
+    order_no: 5
+    help_text: ''
+  - variable_name: status
+    label_name: Status
+    field_type: char
+    field_required: false
+    order_no: 6
+    help_text: ''
+  - variable_name: storage_solution
+    label_name: Storage Solution
+    field_type: char
+    field_required: false
+    order_no: 7
+    help_text: ''
+  - variable_name: lab_lotno
+    label_name: Lab Lot Number
+    field_type: char
+    field_required: true
+    order_no: 8
+    help_text: ''
+  - variable_name: owner
+    label_name: Owner
+    field_type: select
+    choice_id_field: auth_user
+    choice_table: UserProfile
+    choice_text_field: user_short
+    field_required: true
+    order_no: 9
+    help_text: ''
+  - variable_name: benchling_link
+    label_name: Benchling Link
+    field_type: char
+    field_required: false
+    order_no: 10
+    help_text: ''
+  - variable_name: is_sequenced
+    label_name: Is the sample Sequenced?
+    field_type: boolean
+    field_required: false
+    order_no: 11
+    help_text: ''
+  - variable_name: parent_name
+    label_name: Parent Name
+    field_type: char
+    field_required: false
+    order_no: 12
+    help_text: ''
+  - variable_name: general_comments
+    label_name: General Comments
+    field_type: char
+    field_required: false
+    order_no: 13
+    help_text: ''
+  - variable_name: genetic_modifications
+    label_name: Genetic Modifications
+    field_type: char
+    field_required: true
+    order_no: 14
+    help_text: ''
+  - variable_name: species
+    label_name: Species
+    field_type: char
+    field_required: false
+    order_no: 15
+    help_text: ''
+  - variable_name: strainname_main
+    label_name: Main Strain Name
+    field_type: char
+    field_required: false
+    order_no: 16
+    help_text: ''
+  - variable_name: strainname_core
+    label_name: Strain Name Core
+    field_type: char
+    field_required: false
+    order_no: 17
+    help_text: ''
+  - variable_name: strainname_other
+    label_name: Strain Name Other
+    field_type: char
+    field_required: false
+    order_no: 18
+    help_text: ''
+  - variable_name: strainname_atcc
+    label_name: Strain Name ATCC
+    field_type: char
+    field_required: false
+    order_no: 19
+    help_text: ''
+  - variable_name: strain_link
+    label_name: Strain Link
+    field_type: char
+    field_required: false
+    order_no: 20
+    help_text: ''
+  - variable_name: source_name
+    label_name: Source Name
+    field_type: char
+    field_required: false
+    order_no: 21
+    help_text: ''
+  - variable_name: is_purchased
+    label_name: Is purchased?
+    field_type: boolean
+    field_required: false
+    order_no: 22
+    help_text: ''
+  - variable_name: source_lotno
+    label_name: Source Lot Number
+    field_type: char
+    field_required: false
+    order_no: 23
+    help_text: ''
+  - variable_name: is_undermta
+    label_name: Is under MTA?
+    field_type: boolean
+    field_required: false
+    order_no: 24
+    help_text: ''
+  - variable_name: source_recommendedmedia
+    label_name: Source Recommended Media
+    field_type: char
+    field_required: false
+    order_no: 25
+    help_text: ''
+  - variable_name: is_discarded
+    label_name: Is the sample discarded?
+    field_type: boolean
+    field_required: false
+    order_no: 26
+    help_text: ''
+
+sample_insert_type:
+  - variable_name: entry_type
+    label_name: Single Entry or Bulk Entry?
+    field_type: select
+    choice_id_field: id
+    choice_table: SampleInsertType
+    choice_text_field: insert_type
+    field_required: true
+    order_no: 0
+    help_text: ''
+
+sample_insert_single:
+  - variable_name: id
+    label_name: Unique ID
+    field_type: char
+    field_required: true
+    order_no: 0
+    help_text: ''
+
+sample_insert_bulk:
+  - variable_name: start_id
+    label_name: Start ID
+    field_type: char
+    field_required: true
+    order_no: 1
+    help_text: ''
+  - variable_name: end_id
+    label_name: End ID
+    field_type: char
+    field_required: true
+    order_no: 2
+    help_text: ''
+
+storage_samples:
+  - variable_name: sample_list
+    label_name: Sample List
+    field_type: multiplechoice
+    choice_id_field: id
+    choice_table: Sample
+    choice_text_field: id
+    field_required: true
+    order_no: 1
+    help_text: 'Hold down “Control”, or “Command” on a Mac, to select more than one.'
+
+storage_university:
+  - variable_name: university_name
+    label_name: University
+    field_type: select
+    choice_id_field: id
+    choice_table: University
+    choice_text_field: university_name
+    field_required: true
+    order_no: 1
+    help_text: ''
+
+storage_room:
+  - variable_name: room_number
+    label_name: Room Number
+    field_type: select
+    choice_id_field: id
+    choice_table: Room
+    choice_text_field: room_number
+    field_required: true
+    order_no: 1
+    help_text: ''
+
+storage_unit:
+  - variable_name: storage_unit
+    label_name: Storage Unit
+    field_type: select
+    choice_id_field: id
+    choice_table: StorageUnit
+    choice_text_field: storage_unit
+    field_required: true
+    order_no: 1
+    help_text: ''
+
+storage_shelf:
+  - variable_name: shelf
+    label_name: Storage Shelf
+    field_type: select
+    choice_id_field: id
+    choice_table: Shelf
+    choice_text_field: shelf
+    field_required: true
+    order_no: 1
+    help_text: ''
+
+storage_rack:
+  - variable_name: rack
+    label_name: Rack
+    field_type: select
+    choice_id_field: id
+    choice_table: Rack
+    choice_text_field: rack
+    field_required: true
+    order_no: 0
+    help_text: ''
+
+storage_unit_type:
+  - variable_name: unit_type
+    label_name: Unit Type
+    field_type: char
+    field_required: true
+    order_no: 0
+    help_text: ''

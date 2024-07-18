@@ -33,11 +33,16 @@
             {% else %}
                 <p>No storage information available.</p>
             {% endif %}
+            
+            {% if request.user.is_superuser or request.user.is_staff %}
+
             <button type="submit" class="btn btn-primary" onclick="location.href='{% url 'sample_edit' sample_id=sample.id %}';">Edit Sample Info</button>  
             {% with form_group='storage_samples' %}
             <button type="submit" class="btn btn-primary" onclick="location.href='{% url 'form_view' form_group %}';">Add/Edit Storage Info</button>
             {% endwith %}
             <button type="submit" class="btn btn-danger" onclick="location.href='{% url 'sample_discard' sample_id=sample.id %}';">Discard</button>  
+            {% endif %}
+
             <br/><br/>
         </div>
         {% endblock %}
