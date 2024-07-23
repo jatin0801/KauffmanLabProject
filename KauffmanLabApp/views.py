@@ -310,6 +310,9 @@ def get_search_results(samples, search_query):
             Q(organism_type__organism_type__icontains=search_query) |
             Q(material_type__icontains=search_query) |
             Q(status__icontains=search_query) |
+            Q(host_species__icontains=search_query) |
+            Q(host_strain__icontains=search_query) |
+            Q(host_id__icontains=search_query) |
             Q(storage_solution__icontains=search_query) |
             Q(lab_lotno__icontains=search_query) |
             Q(owner__auth_user__username__icontains=search_query) |
@@ -347,6 +350,9 @@ def export_excel_csv(request, selections=None, action='export_excel'):
     else:
         samples = Sample.objects.all()
 
+    now = datetime.datetime.now()
+    timestamp = f"{str(now.year)[-2:]}{now.timetuple().tm_yday}_{now.strftime('%H%M%S')}"
+
     export_samples = []
     for sample in samples:
         export_samples.append(
@@ -356,6 +362,9 @@ def export_excel_csv(request, selections=None, action='export_excel'):
             sample.organism_type.organism_type if sample.organism_type else '',
             sample.material_type,
             sample.status,
+            sample.host_species,
+            sample.host_strain,
+            sample.host_id,
             sample.storage_solution,
             sample.lab_lotno,
             sample.owner.user_short if sample.owner else '',
@@ -388,11 +397,12 @@ def export_excel_csv(request, selections=None, action='export_excel'):
 
     if action == 'export_csv':
         response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="samples.csv"'
+        response['Content-Disposition'] = f'attachment; filename="{timestamp}.samples_backup.csv"'
 
         writer = csv.writer(response)
         writer.writerow([
             'ID', 'Lab NB Page No', 'Label Note', 'Organism Type', 'Material Type', 'Status',
+            'Host Species', 'Host Strain', 'Host ID',
             'Storage Solution', 'Lab Lot No', 'Owner', 'Benchling Link', 'Is Sequenced',
             'Parent Name', 'General Comments', 'Genetic Modifications', 'Species',
             'Strain Name Main', 'Strain Name Core', 'Strain Name Other', 'Strain Name ATCC',
@@ -415,10 +425,10 @@ def export_excel_csv(request, selections=None, action='export_excel'):
         
         workbook.active = workbook['Strain Data']
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = f'attachment; filename="{str(datetime.datetime.now().year)[-2:]}{datetime.datetime.now().timetuple().tm_yday}.samples.xlsx"'
+        response['Content-Disposition'] = f'attachment; filename="filename = "{timestamp}.samples_backup.xlsx"'
         
         if action == 'export_excel_for_bakcup':
-            backup_file_path = os.path.join(settings.MEDIA_ROOT, f'backup_files/{str(datetime.datetime.now().year)[-2:]}{datetime.datetime.now().timetuple().tm_yday}.samples_backup.xlsx')
+            backup_file_path = os.path.join(settings.MEDIA_ROOT, f'backup_files/{timestamp}.samples_backup.xlsx')
             workbook.save(backup_file_path)
             return backup_file_path
         else:
@@ -451,6 +461,9 @@ def sample_detail(request, pk):
         "Organism Type": sample.organism_type,
         "Material Type": sample.material_type,
         "Status": sample.status,
+        "Host Species": sample.species,
+        "Host Strain": sample.host_strain,
+        "Host ID": sample.host_id,
         "Storage Solution": sample.storage_solution,
         "Lab Lot Number": sample.lab_lotno,
         "Owner": sample.owner,
@@ -643,6 +656,9 @@ def process_excel_file(request, excel_file):
     'Organism Type': 'organism_type',
     'Material Type': 'material_type',
     'Status': 'status',
+    'Host Species': 'host_species',
+    'Host Strain': 'host_strain',
+    'Host ID': 'host_id',
     'Storage Solution': 'storage_solution',
     'Lab Lot No': 'lab_lotno',
     'Owner': 'owner',
@@ -997,10 +1013,9 @@ def add_bulk_storage(request, selections):
     return redirect('form_view', form_group='storage_samples')
 
 def get_bulk_sample_ids(start_id, end_id):
-    start = int(start_id.split('.')[-1])
-    end = int(end_id.split('.')[-1])
-    prefix_parts = end_id.split('.')[:-1]
-    prefix = '.'.join(prefix_parts) + '.'
+    start = int(start_id[-3:])
+    end = int(end_id[-3:])
+    prefix = end_id[:-3]
     sample_ids = [f"{prefix}{i:03d}" for i in range(start, end + 1)]
     return sample_ids
 

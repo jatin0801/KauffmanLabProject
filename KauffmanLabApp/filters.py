@@ -7,12 +7,16 @@ from django.db.models.functions import Concat
 
 class SampleFilter(django_filters.FilterSet):
     organism_type_choices = OrganismType.objects.values_list('organism_type', 'organism_type')
+    host_id_choices = Sample.objects.values_list('id', 'id')
     # Sample fields
     labnb_pgno = django_filters.CharFilter(lookup_expr='icontains', label='Lab Number')
     label_note = django_filters.CharFilter(lookup_expr='icontains', label='Label Note')
     organism_type = django_filters.ChoiceFilter(field_name='organism_type__organism_type', choices=organism_type_choices, label='Organism Type')
     material_type = django_filters.CharFilter(lookup_expr='icontains', label='Material Type')
     status = django_filters.CharFilter(lookup_expr='icontains', label='Status')
+    host_species = django_filters.CharFilter(lookup_expr='icontains', label='Host Species')
+    host_strain = django_filters.CharFilter(lookup_expr='icontains', label='Host Strain')
+    host_id = django_filters.ChoiceFilter(field_name='host_id', choices=host_id_choices, label='Host ID')
     storage_solution = django_filters.CharFilter(lookup_expr='icontains', label='Storage Solution')
     lab_lotno = django_filters.CharFilter(lookup_expr='icontains', label='Lab Lot Number')
     owner = django_filters.CharFilter(field_name='owner__username', lookup_expr='icontains', label='Owner Username')

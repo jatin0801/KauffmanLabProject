@@ -15,6 +15,9 @@ class SampleStorageTable(tables.Table):
     organism_type = tables.Column()
     material_type = tables.Column()
     status = tables.Column()
+    host_species = tables.Column()
+    host_strain = tables.Column()
+    host_id = tables.Column()
     storage_solution = tables.Column()
     lab_lotno = tables.Column()
     owner = tables.Column()
@@ -51,6 +54,7 @@ class SampleStorageTable(tables.Table):
         template_name = 'django_tables2/bootstrap.html'
         attrs = {'class': 'table table-bordered'}
         fields = ('selection', 'id', 'labnb_pgno', 'label_note', 'organism_type', 'material_type', 'status', 
+                  'host_species','host_strain', 'host_id',
                   'storage_solution', 'lab_lotno', 'owner', 'benchling_link', 'is_sequenced', 
                   'parent_name', 'general_comments', 'genetic_modifications', 'species', 
                   'strainname_main', 'strainname_core', 'strainname_other', 'strainname_atcc', 
