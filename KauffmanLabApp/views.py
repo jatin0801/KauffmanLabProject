@@ -291,16 +291,33 @@ def sample_list(request, samples=None):
     samples = sample_filter.qs
 
     # Pagination
-    p = Paginator(samples, 15)
+    p = Paginator(samples, 250)
     page = request.GET.get('page')
     samples = p.get_page(page)
     table = SampleStorageTable(samples)
     num_pgs = range(1, samples.paginator.num_pages + 1)
 
+    # Number of samples displayed on the current page
+    num_samples_displayed = len(samples.object_list)
+    total_samples = p.count
+    start_sample = (samples.number - 1) * p.per_page + 1
+    end_sample = min(samples.number * p.per_page, total_samples)
+
     query_params = request.GET.copy()
     query_params.pop('page', None)  # Remove the 'page' parameter if present
     query_string = query_params.urlencode()            
-    return render(request, 'KauffmanLabApp/sample_list.html', {'sample_filter': sample_filter, 'table': table, 'samples': samples, 'num_pgs':num_pgs, 'query_params': query_string, 'search_form': SampleSearchForm(request.GET),})
+    return render(request, 'KauffmanLabApp/sample_list.html', {
+        'sample_filter': sample_filter,
+        'table': table,
+        'samples': samples,
+        'num_pgs': num_pgs,
+        'query_params': query_string,
+        'search_form': SampleSearchForm(request.GET),
+        'num_samples_displayed': num_samples_displayed,
+        'total_samples': total_samples,
+        'start_sample': start_sample,
+        'end_sample': end_sample,
+    })
 
 def get_search_results(samples, search_query):
     samples = samples.filter(

@@ -20,7 +20,7 @@ class SampleStorageTable(tables.Table):
     host_id = tables.Column()
     storage_solution = tables.Column()
     lab_lotno = tables.Column()
-    owner = tables.Column()
+    owner = tables.Column(accessor='owner.user_short')
     benchling_link = tables.Column()
     is_sequenced = tables.BooleanColumn()
     parent_name = tables.Column()

@@ -1,5 +1,5 @@
 import django_filters
-from .models import Sample, Storage, OrganismType, University, Room, StorageUnit, Shelf, Rack
+from .models import Sample, Storage, OrganismType, University, Room, StorageUnit, Shelf, Rack, UserProfile
 from django import forms 
 from django.db.models import F, Value
 from django.db.models.functions import Concat
@@ -8,6 +8,7 @@ from django.db.models.functions import Concat
 class SampleFilter(django_filters.FilterSet):
     organism_type_choices = OrganismType.objects.values_list('organism_type', 'organism_type')
     host_id_choices = Sample.objects.values_list('id', 'id')
+    owner_choices = UserProfile.objects.values_list('user_short', 'user_short')
     # Sample fields
     labnb_pgno = django_filters.CharFilter(lookup_expr='icontains', label='Lab Number')
     label_note = django_filters.CharFilter(lookup_expr='icontains', label='Label Note')
@@ -19,7 +20,7 @@ class SampleFilter(django_filters.FilterSet):
     host_id = django_filters.ChoiceFilter(field_name='host_id', choices=host_id_choices, label='Host ID')
     storage_solution = django_filters.CharFilter(lookup_expr='icontains', label='Storage Solution')
     lab_lotno = django_filters.CharFilter(lookup_expr='icontains', label='Lab Lot Number')
-    owner = django_filters.CharFilter(field_name='owner__username', lookup_expr='icontains', label='Owner Username')
+    owner = django_filters.ChoiceFilter(field_name='owner__user_short', choices = owner_choices, label='Owner User Short')
     is_sequenced = django_filters.BooleanFilter(label='Is Sequenced')
     parent_name = django_filters.CharFilter(lookup_expr='icontains', label='Parent Name')
     general_comments = django_filters.CharFilter(lookup_expr='icontains', label='General Comments')
