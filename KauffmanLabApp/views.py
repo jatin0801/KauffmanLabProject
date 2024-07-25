@@ -5,7 +5,7 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
-from .models import UserProfile, Sample, Storage, VariableLabelMapping, OrganismType, University, Room, StorageUnit, Shelf, Rack
+from .models import UserProfile, Sample, Storage, VariableLabelMapping, OrganismType, University, Room, StorageUnit, Shelf, Rack, PhysicalStatus
 from django.db.models import ForeignKey
 from django.db import transaction
 from django.apps import apps
@@ -128,6 +128,19 @@ def user_register(request):
 
     return render(request, 'KauffmanLabApp/register_user.html', {'form': form})
 
+def handle_foreign_data(data, var, model, field='id'):
+    if var in data and data[var] != '':
+        var_value = data.pop(var)
+        try:
+            if field == 'id':
+                var_instance = model.objects.get(id=var_value)
+            else:
+                var_instance = model.objects.get(**{field: var_value})
+            data[var] = var_instance
+        except model.DoesNotExist:
+            raise ValueError(f"{model.__name__} with value '{var_value}' does not exist.")
+    return data
+
 @user_passes_test(lambda u: u.is_staff)
 def sample_edit(request, sample_id):
     sample = get_object_or_404(Sample, id=sample_id)
@@ -145,23 +158,11 @@ def sample_edit(request, sample_id):
         if form.is_valid():
             for m in mappings:
                 data[m.variable_name] = form.cleaned_data.get(m.variable_name)
-            # Handle organism_type
-            if 'organism_type' in data:
-                organism_type_value = data.pop('organism_type')
-                try:
-                    organism_type_instance = OrganismType.objects.get(id=organism_type_value)
-                    data['organism_type'] = organism_type_instance
-                except OrganismType.DoesNotExist:
-                    raise ValueError(f"OrganismType with value '{organism_type_value}' does not exist.")
+            #Handle foreign data
+            data = handle_foreign_data(data, 'organism_type', OrganismType)
+            data = handle_foreign_data(data, 'owner', UserProfile, field='auth_user__username')
+            data = handle_foreign_data(data, 'status_physical', PhysicalStatus)
                 
-            # Handle owner
-            if 'owner' in data:
-                owner_value = data.pop('owner')
-                try:
-                    owner_instance = UserProfile.objects.get(auth_user__username=owner_value)
-                    data['owner'] = owner_instance
-                except UserProfile.DoesNotExist:
-                    raise ValueError(f"UserProfile with username '{owner_value}' does not exist.")
             data['id'] = sample.id
             sample_id = sample.id  # Assuming ID is a required field
             sample, created = Sample.objects.update_or_create(id=sample_id, defaults=data)
@@ -170,26 +171,26 @@ def sample_edit(request, sample_id):
             messages.warning(request, 'Update failed.')
         return redirect('sample_detail', pk=sample.id)
 
-def sample_discard(request, sample_id):
-    sample = get_object_or_404(Sample, id=sample_id)
-    if request.method == 'POST':
-        form = ConfirmationForm(request.POST, confirm_message=f'Are you sure you want to discard sample {sample.id}?')
-        if form.is_valid():
-            if form.cleaned_data['confirm']:
-                sample.is_discarded = True
-                sample.save()
-                messages.success(request, f'Sample {sample.id} discarded!')
-                return redirect('sample_list')  # Replace 'sample_list' with your actual view name
-            else:
-                messages.info(request, "Discard action cancelled.")
-                return redirect('sample_detail', pk=sample.id)
-    else:
-        form = ConfirmationForm(request.POST, confirm_message=f'Are you sure you want to discard sample {sample.id}?')
-    return render(request, 'KauffmanLabApp/confirmation_page.html', {'form': form, 'sample': sample})
+# def sample_discard(request, sample_id):
+#     sample = get_object_or_404(Sample, id=sample_id)
+#     if request.method == 'POST':
+#         form = ConfirmationForm(request.POST, confirm_message=f'Are you sure you want to discard sample {sample.id}?')
+#         if form.is_valid():
+#             if form.cleaned_data['confirm']:
+#                 sample.is_discarded = True
+#                 sample.save()
+#                 messages.success(request, f'Sample {sample.id} discarded!')
+#                 return redirect('sample_list')  # Replace 'sample_list' with your actual view name
+#             else:
+#                 messages.info(request, "Discard action cancelled.")
+#                 return redirect('sample_detail', pk=sample.id)
+#     else:
+#         form = ConfirmationForm(request.POST, confirm_message=f'Are you sure you want to discard sample {sample.id}?')
+#     return render(request, 'KauffmanLabApp/confirmation_page.html', {'form': form, 'sample': sample})
 
 def sample_delete(request, sample_list):
     samples_to_delete = Sample.objects.filter(id__in=sample_list)
-    samples_to_delete_discarded = Sample.objects.filter(id__in=sample_list, is_discarded=True)
+    # samples_to_delete_discarded = Sample.objects.filter(id__in=sample_list, is_discarded=True)
     if request.method == 'POST':
         form = ConfirmationForm(request.POST)
         if form.is_valid():
@@ -202,26 +203,26 @@ def sample_delete(request, sample_list):
                 return redirect('sample_list')  # Redirect or render another page if canceled
     else:
         samples_to_delete_ids = list(samples_to_delete.values_list('id', flat=True))
-        samples_to_delete_discarded_ids = list(samples_to_delete_discarded.values_list('id', flat=True))
-        samples_to_delete_not_discarded_ids = list(set(samples_to_delete_ids) - set(samples_to_delete_discarded_ids))
+        # samples_to_delete_discarded_ids = list(samples_to_delete_discarded.values_list('id', flat=True))
+        # samples_to_delete_not_discarded_ids = list(set(samples_to_delete_ids) - set(samples_to_delete_discarded_ids))
 
-        if samples_to_delete_not_discarded_ids:
-            confirm_message = (
-                            f"Are you sure you want to delete the samples?\n"
-                            f"<br/> Actions:"
-                            f"<ul>"
-                            f"  <li>Delete Samples:<ul>{sample_list}</ul></li>"
-                            f"  <li>Samples that are not discarded:<ul>{samples_to_delete_not_discarded_ids}</ul></li>"
-                            f"</ul>"
-                        )
-        else:
-            confirm_message = (
-                            f"Are you sure you want to delete the samples?\n"
-                            f"<br/> Actions:"
-                            f"<ul>"
-                            f"  <li>Delete Samples:<ul>{samples_to_delete_ids}</ul></li>"
-                            f"</ul>"
-                        )
+        # if samples_to_delete_not_discarded_ids:
+        #     confirm_message = (
+        #                     f"Are you sure you want to delete the samples?\n"
+        #                     f"<br/> Actions:"
+        #                     f"<ul>"
+        #                     f"  <li>Delete Samples:<ul>{sample_list}</ul></li>"
+        #                     f"  <li>Samples that are not discarded:<ul>{samples_to_delete_not_discarded_ids}</ul></li>"
+        #                     f"</ul>"
+        #                 )
+        # else:
+        confirm_message = (
+                        f"Are you sure you want to delete the samples?\n"
+                        f"<br/> Actions:"
+                        f"<ul>"
+                        f"  <li>Delete Samples:<ul>{samples_to_delete_ids}</ul></li>"
+                        f"</ul>"
+                    )
         form = ConfirmationForm(request.POST, confirm_message=confirm_message)
 
     return render(request, 'KauffmanLabApp/confirmation_page.html', {'form': form})
@@ -274,13 +275,8 @@ def sample_list(request, samples=None):
         
     # Handle sorting
     sort_by_col = request.GET.get('sort', 'id')
-    if sort_by_col in [
-        'benchling_link', 'general_comments', 'genetic_modifications', 'id', 'is_discarded', 'is_purchased', 
-        'is_sequenced', 'is_undermta', 'lab_lotno', 'label_note', 'labnb_pgno', 'material_type', 
-        'organism_type', 'organism_type_id', 'owner', 'owner_id', 'parent_name', 'source_lotno', 
-        'source_name', 'source_recommendedmedia', 'species', 'status', 'storage_id', 'storage_id_id', 
-        'storage_solution', 'strain_link', 'strainname_atcc', 'strainname_core', 'strainname_main', 'strainname_other'
-    ]:
+    field_names = [field.name for field in Sample._meta.get_fields()]
+    if sort_by_col in field_names:
         samples = samples.order_by('-'+sort_by_col)
     else:
         messages.info(request, 'Sorry! I cannot sort by storage related field')
@@ -326,7 +322,6 @@ def get_search_results(samples, search_query):
             Q(label_note__icontains=search_query) |
             Q(organism_type__organism_type__icontains=search_query) |
             Q(material_type__icontains=search_query) |
-            Q(status__icontains=search_query) |
             Q(host_species__icontains=search_query) |
             Q(host_strain__icontains=search_query) |
             Q(host_id__icontains=search_query) |
@@ -346,6 +341,13 @@ def get_search_results(samples, search_query):
             Q(source_name__icontains=search_query) |
             Q(source_lotno__icontains=search_query) |
             Q(source_recommendedmedia__icontains=search_query) |
+            Q(tag__icontains=search_query) |
+            Q(status_contamination__icontains=search_query) |
+            Q(status_QC__icontains=search_query) |
+            Q(status_physical__name__icontains=search_query) |
+            Q(shared_with__icontains=search_query) |
+            Q(is_protected__icontains=search_query) |
+            Q(sequencing_infos__icontains=search_query) |
             Q(storage_id__university_name__university_name__icontains=search_query) |
             Q(storage_id__room_number__room_number__icontains=search_query) |
             Q(storage_id__storage_unit__storage_unit__icontains=search_query) |
@@ -378,7 +380,6 @@ def export_excel_csv(request, selections=None, action='export_excel'):
             sample.label_note,
             sample.organism_type.organism_type if sample.organism_type else '',
             sample.material_type,
-            sample.status,
             sample.host_species,
             sample.host_strain,
             sample.host_id,
@@ -401,7 +402,13 @@ def export_excel_csv(request, selections=None, action='export_excel'):
             sample.source_lotno,
             'Yes' if sample.is_undermta else 'No',
             sample.source_recommendedmedia,
-            'Yes' if sample.is_discarded else 'No',
+            sample.tag,
+            sample.status_contamination,
+            sample.status_QC,
+            sample.status_physical.name if sample.status_physical else '',
+            sample.shared_with,
+            'Yes' if sample.is_protected else 'No',
+            sample.sequencing_infos,
             sample.storage_id.university_name.university_name if sample.storage_id and sample.storage_id.university_name else '',
             sample.storage_id.room_number.room_number if sample.storage_id and sample.storage_id.room_number else '',
             sample.storage_id.storage_unit.storage_unit if sample.storage_id and sample.storage_id.storage_unit else '',
@@ -418,13 +425,14 @@ def export_excel_csv(request, selections=None, action='export_excel'):
 
         writer = csv.writer(response)
         writer.writerow([
-            'ID', 'Lab NB Page No', 'Label Note', 'Organism Type', 'Material Type', 'Status',
+            'ID', 'Lab NB Page No', 'Label Note', 'Organism Type', 'Material Type',
             'Host Species', 'Host Strain', 'Host ID',
             'Storage Solution', 'Lab Lot No', 'Owner', 'Benchling Link', 'Is Sequenced',
             'Parent Name', 'General Comments', 'Genetic Modifications', 'Species',
             'Strain Name Main', 'Strain Name Core', 'Strain Name Other', 'Strain Name ATCC',
             'ATCC Link', 'Source Name', 'Is Purchased', 'Source Lot No', 'Is Under MTA',
-            'Source Recommended Media', 'Is Discarded', 'University Name', 'Room Number', 'Storage Unit',
+            'Source Recommended Media', 'Tag', 'Contamination Status',	'QC Status', 'Physical Status',	'Shared With', 'Is Protected', 'Sequencing Infos'
+            'University Name', 'Room Number', 'Storage Unit',
             'Shelf', 'Rack', 'Box', 'Unit Type'
         ])
 
@@ -442,10 +450,11 @@ def export_excel_csv(request, selections=None, action='export_excel'):
         
         workbook.active = workbook['Strain Data']
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = f'attachment; filename="filename = "{timestamp}.samples_backup.xlsx"'
+        response['Content-Disposition'] = f'attachment; filename="{timestamp}.samples_backup.xlsx"'
         
         if action == 'export_excel_for_bakcup':
-            backup_file_path = os.path.join(settings.MEDIA_ROOT, f'backup_files/{timestamp}.samples_backup.xlsx')
+            backup_file_name = f'{timestamp}.samples_backup.xlsx'
+            backup_file_path = os.path.join(settings.MEDIA_ROOT, 'backup_files', backup_file_name)            
             workbook.save(backup_file_path)
             return backup_file_path
         else:
@@ -477,7 +486,6 @@ def sample_detail(request, pk):
         "Label Note": sample.label_note,
         "Organism Type": sample.organism_type,
         "Material Type": sample.material_type,
-        "Status": sample.status,
         "Host Species": sample.species,
         "Host Strain": sample.host_strain,
         "Host ID": sample.host_id,
@@ -500,6 +508,13 @@ def sample_detail(request, pk):
         "Source Lot Number": sample.source_lotno,
         "Is Under MTA": sample.is_undermta,
         "Source Recommended Media": sample.source_recommendedmedia,
+        "Tag": sample.tag,
+        "Contamination Status": sample.status_contamination,
+        "QC Status": sample.status_QC,
+        "Physical Status": sample.status_physical,
+        "Shared With": sample.shared_with,
+        "Is Protected": sample.is_protected,
+        "Sequencing Infos": sample.sequencing_infos,
         "Storage ID": sample.storage_id,
     }
     storage = sample.storage_id
@@ -576,7 +591,6 @@ def sample_pdf(request, selected_items = None):
     doc.build([table])
     return response
 
-# TODO: import from excel function
 def upload_excel(request):
     if request.method == 'POST':
         if 'excel_file' in request.FILES:
@@ -672,7 +686,6 @@ def process_excel_file(request, excel_file):
     'Label Note': 'label_note',
     'Organism Type': 'organism_type',
     'Material Type': 'material_type',
-    'Status': 'status',
     'Host Species': 'host_species',
     'Host Strain': 'host_strain',
     'Host ID': 'host_id',
@@ -695,7 +708,13 @@ def process_excel_file(request, excel_file):
     'Source Lot No': 'source_lotno',
     'Is Under MTA': 'is_undermta',
     'Source Recommended Media': 'source_recommendedmedia',
-    'Is Discarded': 'is_discarded',
+    'Tag': 'tag',
+    'Contamination Status': 'status_contamination',
+    'QC Status': 'status_QC',
+    'Physical Status': 'status_physical',
+    'Shared With': 'shared_with',
+    'Is Protected': 'is_protected',
+    'Sequencing Infos': 'sequencing_infos',
     'University Name': 'storage_id.university_name',
     'Room Number': 'storage_id.room_number',
     'Storage Unit': 'storage_id.storage_unit',
@@ -733,15 +752,16 @@ def process_excel_file(request, excel_file):
         if storage_data['university_name'] is not None and storage_data['room_number'] is not None and storage_data['storage_unit'] is not None:
             try:
                 # Lookup for University
-                university = University.objects.get(university_name=storage_data.pop('university_name'))
-                
+                university_name = storage_data.pop('university_name').strip()
+                university = University.objects.get(university_name__iexact=university_name)
+
                 # Lookup for Room
                 room_number = storage_data.pop('room_number')
                 room = Room.objects.get(room_number=room_number, university_name=university)
                 
                 # Lookup for StorageUnit
-                storage_unit_value = storage_data.pop('storage_unit')
-                storage_unit = StorageUnit.objects.get(storage_unit=storage_unit_value, room_number=room)
+                storage_unit_value = storage_data.pop('storage_unit').strip()
+                storage_unit = StorageUnit.objects.get(storage_unit__iexact=storage_unit_value, room_number=room)
                 
                 # Lookup for Shelf
                 shelf_value = storage_data.pop('shelf')
@@ -752,8 +772,8 @@ def process_excel_file(request, excel_file):
                     raise Shelf.DoesNotExist(f"No shelf found for value {shelf_value} in storage unit {storage_unit}")
                 
                 # Lookup for Rack
-                rack_value = storage_data.pop('rack')
-                racks = Rack.objects.filter(rack=rack_value, shelf=shelf)
+                rack_value = storage_data.pop('rack').strip()
+                racks = Rack.objects.filter(rack__iexact=rack_value, shelf=shelf)
                 if racks.exists():
                     rack = racks.first()  # If multiple racks are found, use the first one
                 else:
@@ -777,11 +797,10 @@ def process_excel_file(request, excel_file):
             messages.warning(request, "Skipping processing due to empty values in storage_data.")
 
         # Handle foreign keys for OrganismType and UserProfile
-        if 'organism_type' in sample_data and sample_data['organism_type'] != '':
-            sample_data['organism_type'] = OrganismType.objects.get(organism_type=sample_data['organism_type'])
-        if 'owner' in sample_data and sample_data['owner'] != '':
-            sample_data['owner'] = UserProfile.objects.get(user_short=sample_data['owner'])
-
+        sample_data = handle_foreign_data(sample_data, 'organism_type', OrganismType, field='organism_type')
+        sample_data = handle_foreign_data(sample_data, 'owner', UserProfile, field='user_short')
+        sample_data = handle_foreign_data(sample_data, 'status_physical', PhysicalStatus, field='name')
+        
         # Create or update Sample object
         sample_id = sample_data.pop('id')  # Assuming ID is a required field
         sample, created = Sample.objects.update_or_create(id=sample_id, defaults=sample_data)
@@ -932,23 +951,9 @@ def get_form_header(form_group):
 
 def save_sample(data, save_sample_type):
 
-    # Handle organism_type
-    if 'organism_type' in data:
-        organism_type_value = data.pop('organism_type')
-        try:
-            organism_type_instance = OrganismType.objects.get(id=organism_type_value)
-            data['organism_type'] = organism_type_instance
-        except OrganismType.DoesNotExist:
-            raise ValueError(f"OrganismType with value '{organism_type_value}' does not exist.")
-        
-    # Handle owner
-    if 'owner' in data:
-        owner_value = data.pop('owner')
-        try:
-            owner_instance = UserProfile.objects.get(auth_user__username=owner_value)
-            data['owner'] = owner_instance
-        except UserProfile.DoesNotExist:
-            raise ValueError(f"UserProfile with username '{owner_value}' does not exist.")
+    data = handle_foreign_data(data, 'organism_type', OrganismType)
+    data = handle_foreign_data(data, 'owner', UserProfile, field='auth_user__username')
+    data = handle_foreign_data(data, 'status_physical', PhysicalStatus)
     
     if save_sample_type == 'single':
         new_sample = Sample(**data)
@@ -1037,7 +1042,9 @@ def get_bulk_sample_ids(start_id, end_id):
     return sample_ids
 
 def backup_and_upload(request):
-    result = subprocess.run(['python', 'KauffmanLabApp/backup_database.py'], capture_output=True, text=True)
+    script_path = os.path.join(os.getcwd(), 'KauffmanLabApp', 'backup_database.py')
+    result = subprocess.run(['python', script_path], capture_output=True, text=True, shell=True, check=True)
+    # result = subprocess.run(['python', 'KauffmanLabApp/backup_database.py'], capture_output=True, text=True)
     if result.returncode == 0:
         messages.success(request, "Backup successfull")
         return redirect('admin_panel')

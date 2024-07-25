@@ -14,7 +14,6 @@ class SampleStorageTable(tables.Table):
     label_note = tables.Column()
     organism_type = tables.Column()
     material_type = tables.Column()
-    status = tables.Column()
     host_species = tables.Column()
     host_strain = tables.Column()
     host_id = tables.Column()
@@ -37,7 +36,14 @@ class SampleStorageTable(tables.Table):
     source_lotno = tables.Column()
     is_undermta = tables.BooleanColumn()
     source_recommendedmedia = tables.Column()
-    is_discarded = tables.BooleanColumn()
+    tag = tables.Column()
+    status_contamination = tables.Column()
+    status_QC = tables.Column()
+    status_physical = tables.Column()
+    shared_with = tables.Column()
+    is_protected = tables.BooleanColumn()
+    sequencing_infos = tables.Column()
+    
 
     # Storage fields
     university_name = tables.Column(accessor='storage_id.university_name.university_name', verbose_name='University Name', empty_values=())
@@ -53,11 +59,11 @@ class SampleStorageTable(tables.Table):
         model = Sample
         template_name = 'django_tables2/bootstrap.html'
         attrs = {'class': 'table table-bordered'}
-        fields = ('selection', 'id', 'labnb_pgno', 'label_note', 'organism_type', 'material_type', 'status', 
+        fields = ('selection', 'id', 'labnb_pgno', 'label_note', 'organism_type', 'material_type', 
                   'host_species','host_strain', 'host_id',
                   'storage_solution', 'lab_lotno', 'owner', 'benchling_link', 'is_sequenced', 
                   'parent_name', 'general_comments', 'genetic_modifications', 'species', 
                   'strainname_main', 'strainname_core', 'strainname_other', 'strainname_atcc', 
                   'strain_link', 'source_name', 'is_purchased', 'source_lotno', 'is_undermta', 
-                  'source_recommendedmedia', 'is_discarded', 'university_name', 'room_number', 'storage_unit', 
+                  'source_recommendedmedia', 'tag', 'status_contamination', 'status_QC', 'status_physical', 'shared_with', 'is_protected', 'sequencing_infos', 'university_name', 'room_number', 'storage_unit', 
                   'shelf', 'rack', 'box', 'unit_type')
