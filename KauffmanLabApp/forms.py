@@ -54,7 +54,11 @@ class DynamicForm(forms.Form):
 
                 if mapping.field_type == 'char':
                     self.fields[mapping.variable_name] = forms.CharField(
-                        **field_kwargs, max_length=100, widget=forms.TextInput(attrs={'class': 'form-control'})
+                        **field_kwargs, max_length=255, widget=forms.TextInput(attrs={'class': 'form-control'})
+                    )
+                elif mapping.field_type == 'text':
+                    self.fields[mapping.variable_name] = forms.CharField(
+                        **field_kwargs, widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
                     )
                 elif mapping.field_type == 'select':
                     self.fields[mapping.variable_name] = forms.ChoiceField(

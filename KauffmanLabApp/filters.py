@@ -1,5 +1,5 @@
 import django_filters
-from .models import Sample, Storage, OrganismType, University, Room, StorageUnit, Shelf, Rack, UserProfile
+from .models import Sample, Storage, OrganismType, University, Room, StorageUnit, Shelf, Rack, UserProfile, PhysicalStatus
 from django import forms 
 from django.db.models import F, Value
 from django.db.models.functions import Concat
@@ -9,12 +9,12 @@ class SampleFilter(django_filters.FilterSet):
     organism_type_choices = OrganismType.objects.values_list('organism_type', 'organism_type')
     host_id_choices = Sample.objects.values_list('id', 'id')
     owner_choices = UserProfile.objects.values_list('user_short', 'user_short')
+    status_physical_choices = PhysicalStatus.objects.values_list('name', 'name')
     # Sample fields
     labnb_pgno = django_filters.CharFilter(lookup_expr='icontains', label='Lab Number')
     label_note = django_filters.CharFilter(lookup_expr='icontains', label='Label Note')
     organism_type = django_filters.ChoiceFilter(field_name='organism_type__organism_type', choices=organism_type_choices, label='Organism Type')
     material_type = django_filters.CharFilter(lookup_expr='icontains', label='Material Type')
-    status = django_filters.CharFilter(lookup_expr='icontains', label='Status')
     host_species = django_filters.CharFilter(lookup_expr='icontains', label='Host Species')
     host_strain = django_filters.CharFilter(lookup_expr='icontains', label='Host Strain')
     host_id = django_filters.ChoiceFilter(field_name='host_id', choices=host_id_choices, label='Host ID')
@@ -36,7 +36,13 @@ class SampleFilter(django_filters.FilterSet):
     source_lotno = django_filters.CharFilter(lookup_expr='icontains', label='Source Lot Number')
     is_undermta = django_filters.BooleanFilter(label='Is Under MTA')
     source_recommendedmedia = django_filters.CharFilter(lookup_expr='icontains', label='Source Recommended Media')
-    is_discarded = django_filters.BooleanFilter(label='Is Discarded?')
+    tag = django_filters.CharFilter(lookup_expr='icontains', label='Tag')
+    status_contamination = django_filters.CharFilter(lookup_expr='icontains', label='Contamination Status')
+    status_QC = django_filters.CharFilter(lookup_expr='icontains', label='QC Status')
+    status_physical = django_filters.ChoiceFilter(field_name='status_physical__name', choices=status_physical_choices, label='Physical Status')
+    shared_with = django_filters.CharFilter(lookup_expr='icontains', label='Shared With')
+    is_protected = django_filters.BooleanFilter(label='Is Protected')
+    sequencing_infos = django_filters.CharFilter(lookup_expr='icontains', label='Sequencing Infos')
 
     # Storage choices
     university_name_choices = University.objects.values_list('university_name', 'university_name')

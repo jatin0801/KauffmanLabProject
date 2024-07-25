@@ -11,7 +11,8 @@ from django.test import RequestFactory
 import datetime
 
 # change this during setup
-sys.path.append('/Users/jatinchhabria/Documents/KauffmanLab/KauffmanLabProject')
+# sys.path.append(r'C:\Users\labAdmin\Documents\KauffmanLabProject')
+sys.path.append(r'C:\Users\labAdmin\Documents\KauffmanLabProject')
 
 # Set up Django settings
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'KauffmanLabProject.settings')
@@ -20,7 +21,8 @@ django.setup()
 from KauffmanLabApp import views
 
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
-SERVICE_ACCOUNT_FILE = os.path.join('/Users/jatinchhabria/Documents/KauffmanLab/KauffmanLabProject/KauffmanLabApp/media', 'creds/kauffman-lab-data-backup-67a554acfbc0.json')
+# SERVICE_ACCOUNT_FILE = os.path.join('/Users/jatinchhabria/Documents/KauffmanLab/KauffmanLabProject/KauffmanLabApp/media', 'creds/kauffman-lab-data-backup-67a554acfbc0.json')
+SERVICE_ACCOUNT_FILE = r'C:\Users\labAdmin\Documents\KauffmanLabProject\KauffmanLabApp\media\creds\kauffman-lab-data-backup-67a554acfbc0.json'
 
 def upload_to_google_drive(file_path, file_name, parent_folder_id=None):
     print('in upload_to_google_drive')
@@ -44,6 +46,8 @@ if __name__ == "__main__":
 
     file_path = views.export_excel_csv(request=request, selections=None, action='export_excel_for_bakcup')
     if file_path:
-        file_name = f'{str(datetime.datetime.now().year)[-2:]}{datetime.datetime.now().timetuple().tm_yday}.samples_backup.xlsx'
+        now = datetime.datetime.now()
+        timestamp = f"{str(now.year)[-2:]}{now.timetuple().tm_yday}_{now.strftime('%H%M%S')}"
+        file_name = f'{timestamp}.samples_backup.xlsx'
         parent_folder_id = '1jQAvDbYUC6hP-pplduW1kAI9I2RwEF6C'
         upload_to_google_drive(file_path, file_name, parent_folder_id)

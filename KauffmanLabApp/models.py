@@ -66,6 +66,13 @@ class OrganismType(models.Model):
     def __str__(self):
         return self.organism_type
     
+class PhysicalStatus(models.Model):
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=255)
+
+    def __str__(self):
+        return self.name
+    
 class SampleInsertType(models.Model):
     id = models.AutoField(primary_key=True)
     insert_type = models.CharField(max_length=255)
@@ -87,30 +94,35 @@ class Sample(models.Model):
     label_note = models.CharField(max_length=255)
     organism_type = models.ForeignKey(OrganismType, blank=True, null=True, on_delete=models.SET_NULL)
     material_type = models.CharField(max_length=255)
-    status = models.CharField(max_length=255, blank=True, null=True)
     host_species = models.CharField(max_length=255, blank=True, null=True)
     host_strain = models.CharField(max_length=255, blank=True, null=True)
     host_id = models.CharField(max_length=255, blank=True, null=True)
-    storage_solution = models.CharField(max_length=255, blank=True, null=True)
-    lab_lotno = models.CharField(max_length=255, blank=True, null=True)
+    storage_solution = models.CharField(max_length=255, default='error')
+    lab_lotno = models.CharField(max_length=255, default='error')
     owner = models.ForeignKey(UserProfile, blank=True, null=True, on_delete=models.SET_NULL)
-    benchling_link = models.CharField(max_length=255, blank=True, null=True)
+    benchling_link = models.CharField(max_length=255, default='error')
     is_sequenced = models.BooleanField(blank=True, null=True)
     parent_name = models.CharField(max_length=255, blank=True, null=True)
     general_comments = models.TextField(blank=True, null=True)
-    genetic_modifications = models.CharField(max_length=255, blank=True, null=True)
+    genetic_modifications = models.TextField(blank=True, null=True)
     species = models.CharField(max_length=255, blank=True, null=True)
     strainname_main = models.CharField(max_length=255, blank=True, null=True)
     strainname_core = models.CharField(max_length=255, blank=True, null=True)
-    strainname_other = models.CharField(max_length=255, blank=True, null=True)
+    strainname_other = models.TextField(blank=True, null=True)
     strainname_atcc = models.CharField(max_length=255, blank=True, null=True)
     strain_link = models.CharField(max_length=255, blank=True, null=True)
-    source_name = models.CharField(max_length=255, blank=True, null=True)
+    source_name = models.CharField(max_length=255, default='error')
     is_purchased = models.BooleanField(default=False, blank=True, null=True)
-    source_lotno = models.CharField(max_length=255, blank=True, null=True)
+    source_lotno = models.CharField(max_length=255, default='error')
     is_undermta = models.BooleanField(blank=True, null=True)
     source_recommendedmedia = models.CharField(max_length=255, blank=True, null=True)
-    is_discarded = models.BooleanField(default=False, blank=True, null=True)
+    tag = models.TextField(blank=True, null=True)
+    status_contamination = models.CharField(max_length=255, blank=True, null=True)
+    status_QC = models.TextField(blank=True, null=True)
+    status_physical = models.ForeignKey(PhysicalStatus, blank=True, null=True, on_delete=models.SET_NULL)
+    shared_with = models.TextField(blank=True, null=True)
+    is_protected = models.BooleanField(default=False, blank=True, null=True)
+    sequencing_infos = models.TextField(blank=True, null=True)
     storage_id = models.OneToOneField(Storage, null = True, on_delete = models.CASCADE)
 
 
@@ -132,6 +144,7 @@ class Choice(models.Model):
 class VariableLabelMapping(models.Model):
     VARIABLE_TYPE_CHOICES = (
         ('char', 'CharField'),
+        ('text', 'TextField'),
         ('select', 'SelectField'),
         ('boolean', 'BooleanField'),
         ('integer', 'IntegerField'),
