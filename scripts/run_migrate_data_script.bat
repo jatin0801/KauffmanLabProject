@@ -1,0 +1,1 @@
+powershell.exe -File "C:\Users\labAdmin\Documents\KauffmanLabProject\scripts\migrate_data_script.ps1"
