@@ -230,38 +230,41 @@ def sample_delete(request, sample_list):
 # TODO: diplay values from storage table. filters working fine.
 @login_required
 def sample_list(request, samples=None):
-    # Handling selections in the GET request
-    selections = request.GET.getlist('selection')
-    action = request.GET.get('action')    
-    if action or selections:
-        if action == 'add_bulk_storage':
-            selections = request.GET.getlist('selection')
+    if request.method == 'POST':
+        selections = request.POST.getlist('selection')
+        action = request.POST.get('action')    
+        if action:
             sample_list = request.session.get('sample_list', [])
-            if not sample_list and selections:
-                sample_list = selections              
-            return add_bulk_storage(request, sample_list)
-        elif action == 'export_csv':
-            sample_list = request.session.get('sample_list', [])
-            return export_excel_csv(request, sample_list, action)
-        elif action == 'export_excel':
-            sample_list = request.session.get('sample_list', [])
-            return export_excel_csv(request, sample_list, action)
-        elif action == 'save_selection':
-            sample_list = request.session.get('sample_list', [])
-            sample_list.extend(selections)
-            sample_list=list(set(sample_list))
-            request.session['sample_list'] = sample_list
-            request.session.save()
-            messages.success(request, f'Selected samples: {sample_list} saved')
-        elif action == 'clear_selection':
-            clear_session_data(request)
-            messages.success(request, f'Sample selection cleared')
-        elif action == 'sample_delete':
-            selections = request.GET.getlist('selection')
-            sample_list = request.session.get('sample_list', [])
-            if not sample_list and selections:
-                sample_list = selections              
-            return sample_delete(request, sample_list)
+            
+            if action == 'add_bulk_storage':
+                if not sample_list and selections:
+                    sample_list = selections              
+                return add_bulk_storage(request, sample_list)
+            
+            elif action == 'export_csv':
+                return export_excel_csv(request, sample_list, action)
+            
+            elif action == 'export_excel':
+                return export_excel_csv(request, sample_list, action)
+            
+            elif action == 'save_selection':
+                sample_list.extend(selections)
+                sample_list=list(set(sample_list))
+                request.session['sample_list'] = sample_list
+                request.session.save()
+                formatted_list = ', '.join(sample_list) if sample_list else 'None'
+                messages.success(request, f'Selected samples: {formatted_list}')
+            
+            elif action == 'clear_selection':
+                clear_session_data(request)
+                messages.info(request, f'Sample selection cleared')
+            
+            elif action == 'sample_delete':
+                if not sample_list and selections:
+                    sample_list = selections              
+                return sample_delete(request, sample_list)
+            
+            return redirect('sample_list')
             
     
     # Get all samples
@@ -359,15 +362,19 @@ def get_search_results(samples, search_query):
     return samples
 
 def export_excel_csv(request, selections=None, action='export_excel'):
-    sample_filter = SampleFilter(request.GET, queryset=Sample.objects.all())
-    if request and request.GET:
-            selections = request.GET.getlist('selection')
+    sample_filter = SampleFilter(request.GET, queryset=Sample.objects.all()) 
+    
+    if selections:
+        samples = Sample.objects.filter(id__in=selections)
+    else:
+        if request.POST:
+            selections = request.POST.getlist('selection')
             if selections:
                 samples = Sample.objects.filter(id__in=selections)
             else:
                 samples = sample_filter.qs
-    else:
-        samples = Sample.objects.all()
+        else:
+            samples = Sample.objects.all()
 
     now = datetime.datetime.now()
     timestamp = f"{str(now.year)[-2:]}{now.timetuple().tm_yday}_{now.strftime('%H%M%S')}"

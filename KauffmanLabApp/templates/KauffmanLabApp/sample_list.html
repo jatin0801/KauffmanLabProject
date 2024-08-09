@@ -40,15 +40,31 @@
     </div>
     <div class='gap-section'></div>
     <div class='table-section'>
-        <form method="get" action="">
+        <form method="post" action="">
         {% comment %} <form method="get" action="{% url 'sample_csv' %}"> {% endcomment %}
             {% csrf_token %}
             {% for filter_name, filter_value in request.GET.items %}
                 <input type="hidden" name="{{ filter_name }}" value="{{ filter_value }}">
             {% endfor %}
-            <div class="table-responsive" style="overflow-y: auto;">
-                {% render_table table %}
+            <div class="table-responsive" style="height: calc(100vh - 50px); overflow-y: auto; overflow-x: auto;">
+                <table class="table table-striped">
+                    <thead class="sticky-header">
+                        {% for column in table.columns %}
+                            <th>{{ column.header }}</th>
+                        {% endfor %}
+                    </thead>
+                    <tbody>
+                        {% for row in table.rows %}
+                            <tr>
+                                {% for cell in row %}
+                                    <td>{{ cell }}</td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
+            
             <br/>
 
             <nav aria-label="Page navigation">   
