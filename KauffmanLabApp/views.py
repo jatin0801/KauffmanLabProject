@@ -9,6 +9,7 @@ from .models import UserProfile, Sample, Storage, VariableLabelMapping, Organism
 from django.db.models import ForeignKey
 from django.db import transaction
 from django.apps import apps
+from django_tables2 import RequestConfig
 from .tables import SampleStorageTable
 from .filters import SampleFilter
 from .forms import DynamicForm, ConfirmationForm, UserRegistrationForm, ExcelUploadForm, SampleSearchForm
@@ -277,30 +278,59 @@ def sample_list(request, samples=None):
         samples = get_search_results(samples, search_query)
         
     # Handle sorting
-    sort_by_col = request.GET.get('sort', 'id')
-    field_names = [field.name for field in Sample._meta.get_fields()]
-    if sort_by_col in field_names:
-        samples = samples.order_by('-'+sort_by_col)
-    else:
-        messages.info(request, 'Sorry! I cannot sort by storage related field')
-        samples = samples.order_by('-id')
+    # sort_by_col = request.GET.get('sort', '-id')
+    # field_names = [field.name for field in Sample._meta.get_fields()]
+    # if sort_by_col in field_names:
+    #     samples = samples.order_by('-'+sort_by_col)
+    # else:
+    #     messages.info(request, 'Sorry! I cannot sort by storage related field')
+    #     samples = samples.order_by('-id')
 
     # Apply filters
     sample_filter = SampleFilter(request.GET, queryset=samples)
     samples = sample_filter.qs
 
     # Pagination
-    p = Paginator(samples, 250)
-    page = request.GET.get('page')
-    samples = p.get_page(page)
-    table = SampleStorageTable(samples)
-    num_pgs = range(1, samples.paginator.num_pages + 1)
+    # p = Paginator(samples, 250)
+    # page = request.GET.get('page')
+    # samples = p.get_page(page)
+    # table = SampleStorageTable(samples)
+    # num_pgs = range(1, samples.paginator.num_pages + 1)
 
     # Number of samples displayed on the current page
-    num_samples_displayed = len(samples.object_list)
-    total_samples = p.count
-    start_sample = (samples.number - 1) * p.per_page + 1
-    end_sample = min(samples.number * p.per_page, total_samples)
+    # num_samples_displayed = len(samples.object_list)
+    # num_samples_displayed = len(samples)
+    # total_samples = p.count
+    # start_sample = (samples.number - 1) * p.per_page + 1
+    # end_sample = min(samples.number * p.per_page, total_samples)
+   
+    # sorting
+    sort_by_col = request.GET.get('sort', 'created_at')
+    current_order = request.GET.get('order', 'asc')
+
+    foreign_key_sort_map = {
+    'organism_type': 'organism_type__organism_type',
+    'owner': 'owner__user_short', 
+    'status_physical': 'status_physical__name',
+    'storage_id.university_name.university_name': 'storage_id__university_name__university_name',
+    'storage_id.room_number.room_number': 'storage_id__room_number__room_number',
+    'storage_id.storage_unit.storage_unit': 'storage_id__storage_unit__storage_unit',
+    'storage_id.shelf.shelf': 'storage_id__shelf__shelf',
+    'storage_id.rack.rack': 'storage_id__rack__rack',
+    'storage_id.box': 'storage_id__box',
+    'storage_id.unit_type': 'storage_id__unit_type',
+    }
+    sort_by_col = foreign_key_sort_map.get(sort_by_col, sort_by_col)
+    
+    if current_order == 'asc':
+        samples = samples.order_by(sort_by_col)
+        new_order = 'desc'
+    else:
+        samples = samples.order_by('-' + sort_by_col)
+        new_order = 'asc'
+    table = SampleStorageTable(samples)
+    num_samples_displayed = len(samples)
+    # RequestConfig(request).configure(table)
 
     query_params = request.GET.copy()
     query_params.pop('page', None)  # Remove the 'page' parameter if present
@@ -309,13 +339,14 @@ def sample_list(request, samples=None):
         'sample_filter': sample_filter,
         'table': table,
         'samples': samples,
-        'num_pgs': num_pgs,
+        # 'num_pgs': num_pgs,
         'query_params': query_string,
         'search_form': SampleSearchForm(request.GET),
         'num_samples_displayed': num_samples_displayed,
-        'total_samples': total_samples,
-        'start_sample': start_sample,
-        'end_sample': end_sample,
+        'new_order': new_order,
+        # 'total_samples': total_samples,
+        # 'start_sample': start_sample,
+        # 'end_sample': end_sample,
     })
 
 def get_search_results(samples, search_query):
@@ -351,6 +382,8 @@ def get_search_results(samples, search_query):
             Q(shared_with__icontains=search_query) |
             Q(is_protected__icontains=search_query) |
             Q(sequencing_infos__icontains=search_query) |
+            Q(plasmids__icontains=search_query) |
+            Q(antibiotics__icontains=search_query) |
             Q(storage_id__university_name__university_name__icontains=search_query) |
             Q(storage_id__room_number__room_number__icontains=search_query) |
             Q(storage_id__storage_unit__storage_unit__icontains=search_query) |
@@ -416,6 +449,8 @@ def export_excel_csv(request, selections=None, action='export_excel'):
             sample.shared_with,
             'Yes' if sample.is_protected else 'No',
             sample.sequencing_infos,
+            sample.plasmids,
+            sample.antibiotics,
             sample.storage_id.university_name.university_name if sample.storage_id and sample.storage_id.university_name else '',
             sample.storage_id.room_number.room_number if sample.storage_id and sample.storage_id.room_number else '',
             sample.storage_id.storage_unit.storage_unit if sample.storage_id and sample.storage_id.storage_unit else '',
@@ -438,7 +473,8 @@ def export_excel_csv(request, selections=None, action='export_excel'):
             'Parent Name', 'General Comments', 'Genetic Modifications', 'Species',
             'Strain Name Main', 'Strain Name Core', 'Strain Name Other', 'Strain Name ATCC',
             'ATCC Link', 'Source Name', 'Is Purchased', 'Source Lot No', 'Is Under MTA',
-            'Source Recommended Media', 'Tag', 'Contamination Status',	'QC Status', 'Physical Status',	'Shared With', 'Is Protected', 'Sequencing Infos'
+            'Source Recommended Media', 'Tag', 'Contamination Status',	'QC Status', 'Physical Status',	'Shared With', 'Is Protected', 'Sequencing Infos',
+            'Plasmids', 'Antibiotics',
             'University Name', 'Room Number', 'Storage Unit',
             'Shelf', 'Rack', 'Box', 'Unit Type'
         ])
@@ -522,6 +558,8 @@ def sample_detail(request, pk):
         "Shared With": sample.shared_with,
         "Is Protected": sample.is_protected,
         "Sequencing Infos": sample.sequencing_infos,
+        "Plasmids": sample.plasmids,
+        "Antibiotics": sample.antibiotics,
         "Storage ID": sample.storage_id,
     }
     storage = sample.storage_id
@@ -722,6 +760,8 @@ def process_excel_file(request, excel_file):
     'Shared With': 'shared_with',
     'Is Protected': 'is_protected',
     'Sequencing Infos': 'sequencing_infos',
+    'Plasmids': 'plasmids',
+    'Antibiotics': 'antibiotics',
     'University Name': 'storage_id.university_name',
     'Room Number': 'storage_id.room_number',
     'Storage Unit': 'storage_id.storage_unit',

@@ -2,6 +2,7 @@ from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.contrib.auth.models import User as AuthUser
+from django.utils import timezone
 
 # STORAGE
 class University(models.Model):
@@ -123,6 +124,9 @@ class Sample(models.Model):
     shared_with = models.TextField(blank=True, null=True)
     is_protected = models.BooleanField(default=False, blank=True, null=True)
     sequencing_infos = models.TextField(blank=True, null=True)
+    plasmids = models.TextField(blank=True, null=True)
+    antibiotics = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
     storage_id = models.OneToOneField(Storage, null = True, on_delete = models.CASCADE)
 
 

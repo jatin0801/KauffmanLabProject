@@ -43,6 +43,8 @@ class SampleFilter(django_filters.FilterSet):
     shared_with = django_filters.CharFilter(lookup_expr='icontains', label='Shared With')
     is_protected = django_filters.BooleanFilter(label='Is Protected')
     sequencing_infos = django_filters.CharFilter(lookup_expr='icontains', label='Sequencing Infos')
+    plasmids = django_filters.CharFilter(lookup_expr='icontains', label='Plasmids')
+    antibiotics = django_filters.CharFilter(lookup_expr='icontains', label='Antibiotics')
 
     # Storage choices
     university_name_choices = University.objects.values_list('university_name', 'university_name')

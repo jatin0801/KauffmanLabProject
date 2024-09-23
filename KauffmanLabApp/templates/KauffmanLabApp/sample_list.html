@@ -50,7 +50,19 @@
                 <table class="table table-striped">
                     <thead class="sticky-header">
                         {% for column in table.columns %}
-                            <th>{{ column.header }}</th>
+                            <th>
+                                {% comment %} <a href="?sort={{ column.accessor }}&order={{ new_order }}"> {% endcomment %}
+                                    <a href="?sort={{ column.accessor }}&order={{ new_order }}{% for key, value in request.GET.items %}{% if key != 'sort' and key != 'order' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                    {{ column.verbose_name }}
+                                    {% if request.GET.sort == column.accessor %}
+                                        {% if request.GET.order == 'asc' %}
+                                            &#9650; <!-- Up arrow for ascending order -->
+                                        {% else %}
+                                            &#9660; <!-- Down arrow for descending order -->
+                                        {% endif %}
+                                    {% endif %}
+                                </a>
+                            </th>
                         {% endfor %}
                     </thead>
                     <tbody>
@@ -68,7 +80,8 @@
             <br/>
 
             <nav aria-label="Page navigation">   
-                <p>Showing {{ start_sample }} to {{ end_sample }} of {{ total_samples }} samples</p>                 
+                <p>Showing {{ num_samples_displayed }} samples</p>                 
+                {% comment %} <p>Showing {{ start_sample }} to {{ end_sample }} of {{ total_samples }} samples</p>                 
                 <ul class="pagination"> 
                 {% if samples.has_previous%}
                 <li class="page-item"><a class="page-link" href="?{{query_params}}&page=1">&laquo First</a></li>
@@ -89,7 +102,7 @@
                 <li class="page-item disabled"><a class="page-link" href="#">Next</a></li>
                 <li class="page-item disabled"><a class="page-link" href="#">Last &raquo</a></li>
                 {% endif %}
-                </ul>
+                </ul> {% endcomment %}
             </nav>
             <button type="submit" name="action" value="save_selection" class="btn btn-primary">Save/View Selection</button>
             <button type="submit" name="action" value="clear_selection" class="btn btn-secondary">Clear Selection</button>

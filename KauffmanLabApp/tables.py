@@ -8,7 +8,7 @@ import django_tables2 as tables
 from .models import Sample, Storage
 
 class SampleStorageTable(tables.Table):
-    selection = CheckBoxColumn(accessor='pk', orderable=False, empty_values=())
+    selection = CheckBoxColumn(accessor='pk', orderable=False, empty_values=(), verbose_name='Select')
     id = tables.Column(linkify=("sample_detail", {"pk": tables.A("id")}), verbose_name='Unique ID')
     labnb_pgno = tables.Column(verbose_name='Lab Notebook Page')
     label_note = tables.Column(verbose_name='Label Note')
@@ -43,6 +43,8 @@ class SampleStorageTable(tables.Table):
     shared_with = tables.Column(verbose_name='Shared With')
     is_protected = tables.BooleanColumn(verbose_name='Is Protected')
     sequencing_infos = tables.Column(verbose_name='Sequencing Events')
+    plasmids = tables.Column(verbose_name='Plasmids')
+    antibiotics = tables.Column(verbose_name='Antibiotics')
     
 
     # Storage fields
@@ -57,6 +59,7 @@ class SampleStorageTable(tables.Table):
 
     class Meta:
         model = Sample
+        orderable = True
         template_name = 'django_tables2/bootstrap.html'
         # attrs = {'class': 'table table-bordered'}
         fields = ('selection', 'id', 'labnb_pgno', 'label_note', 'organism_type', 'material_type', 
@@ -65,5 +68,7 @@ class SampleStorageTable(tables.Table):
                   'parent_name', 'general_comments', 'genetic_modifications', 'species', 
                   'strainname_main', 'strainname_core', 'strainname_other', 'strainname_atcc', 
                   'strain_link', 'source_name', 'is_purchased', 'source_lotno', 'is_undermta', 
-                  'source_recommendedmedia', 'tag', 'status_contamination', 'status_QC', 'status_physical', 'shared_with', 'is_protected', 'sequencing_infos', 'university_name', 'room_number', 'storage_unit', 
+                  'source_recommendedmedia', 'tag', 'status_contamination', 'status_QC', 'status_physical',
+                  'shared_with', 'is_protected', 'sequencing_infos', 'plasmids', 'antibiotics',
+                  'university_name', 'room_number', 'storage_unit', 
                   'shelf', 'rack', 'box', 'unit_type')
