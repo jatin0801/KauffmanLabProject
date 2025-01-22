@@ -50,8 +50,10 @@ class SampleFilter(django_filters.FilterSet):
     university_name_choices = University.objects.values_list('university_name', 'university_name')
     room_number_choices = Room.objects.values_list('room_number', 'room_number')
     storage_unit_choices = StorageUnit.objects.values_list('storage_unit', 'storage_unit')
-    shelf_choices = [(shelf.id, str(shelf)) for shelf in Shelf.objects.all()]
-    rack_choices = [(rack.id, str(rack)) for rack in Rack.objects.all()]
+    shelf_choices = Shelf.objects.values_list('id', 'shelf')
+    rack_choices = Rack.objects.values_list('id', 'rack')
+    # shelf_choices = [(shelf.id, str(shelf)) for shelf in Shelf.objects.all()]
+    # rack_choices = [(rack.id, str(rack)) for rack in Rack.objects.all()]
 
     university_name = django_filters.ChoiceFilter(field_name='storage_id__university_name__university_name', choices=university_name_choices, label='University Name')
     room_number = django_filters.ChoiceFilter(field_name='storage_id__room_number__room_number', choices = room_number_choices, label='Room Number')

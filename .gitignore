@@ -1,3 +1,7 @@
+/static_collected
+/data
+/project_zip
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

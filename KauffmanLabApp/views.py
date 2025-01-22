@@ -135,6 +135,11 @@ def handle_foreign_data(data, var, model, field='id'):
         try:
             if field == 'id':
                 var_instance = model.objects.get(id=var_value)
+            elif field == 'first_last_name':
+                first_name, last_name = var_value.split()
+                var_instance = model.objects.get(
+                    auth_user__first_name=first_name, auth_user__last_name=last_name
+                )
             else:
                 var_instance = model.objects.get(**{field: var_value})
             data[var] = var_instance
@@ -189,6 +194,7 @@ def sample_edit(request, sample_id):
 #         form = ConfirmationForm(request.POST, confirm_message=f'Are you sure you want to discard sample {sample.id}?')
 #     return render(request, 'KauffmanLabApp/confirmation_page.html', {'form': form, 'sample': sample})
 
+# TODO: always cancels deletion because of confirmation page
 def sample_delete(request, sample_list):
     samples_to_delete = Sample.objects.filter(id__in=sample_list)
     # samples_to_delete_discarded = Sample.objects.filter(id__in=sample_list, is_discarded=True)
@@ -845,7 +851,7 @@ def process_excel_file(request, excel_file):
 
         # Handle foreign keys for OrganismType and UserProfile
         sample_data = handle_foreign_data(sample_data, 'organism_type', OrganismType, field='organism_type')
-        sample_data = handle_foreign_data(sample_data, 'owner', UserProfile, field='user_short')
+        sample_data = handle_foreign_data(sample_data, 'owner', UserProfile, field='first_last_name')
         sample_data = handle_foreign_data(sample_data, 'status_physical', PhysicalStatus, field='name')
         
         # Create or update Sample object
