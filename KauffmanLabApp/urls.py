@@ -14,6 +14,7 @@ urlpatterns = [
     path("sample_pdf/", views.sample_pdf, name="sample_pdf"),
     path("login/", views.user_login, name="login"),
     path("logout/", views.user_logout, name="logout"),
+    path("change_password/", views.user_change_password, name="change_password"),
     path("register/", views.user_register, name="register"),
     path("upload_excel/", views.upload_excel, name="upload_excel"),
     path('sample_list/<str:pk>/', views.sample_detail, name='sample_detail'),

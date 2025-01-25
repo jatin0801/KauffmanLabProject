@@ -47,6 +47,11 @@
               <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton">
                 {% if user.is_authenticated %}
                   <li>
+                    <form class="d-flex" role="search" action="{% url 'change_password' %}">
+                      <button class="dropdown-item" type="submit">Change Password</button>
+                    </form>
+                  </li>
+                  <li>
                     <form class="d-flex" role="search" action="{% url 'logout' %}">
                       <button class="dropdown-item" type="submit">Logout</button>
                     </form>
