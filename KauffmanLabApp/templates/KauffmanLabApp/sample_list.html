@@ -80,8 +80,8 @@
             <br/>
 
             <nav aria-label="Page navigation">   
-                <p>Showing {{ num_samples_displayed }} samples</p>                 
-                {% comment %} <p>Showing {{ start_sample }} to {{ end_sample }} of {{ total_samples }} samples</p>                 
+                {% comment %} <p>Showing {{ num_samples_displayed }} samples</p>                  {% endcomment %}
+                <p>Showing {{ start_sample }} to {{ end_sample }} of {{ total_samples }} samples</p>                 
                 <ul class="pagination"> 
                 {% if samples.has_previous%}
                 <li class="page-item"><a class="page-link" href="?{{query_params}}&page=1">&laquo First</a></li>
@@ -102,7 +102,7 @@
                 <li class="page-item disabled"><a class="page-link" href="#">Next</a></li>
                 <li class="page-item disabled"><a class="page-link" href="#">Last &raquo</a></li>
                 {% endif %}
-                </ul> {% endcomment %}
+                </ul>
             </nav>
             <button type="submit" name="action" value="save_selection" class="btn btn-primary">Save/View Selection</button>
             <button type="submit" name="action" value="clear_selection" class="btn btn-secondary">Clear Selection</button>

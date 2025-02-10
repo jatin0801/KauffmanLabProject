@@ -312,20 +312,6 @@ def sample_list(request, samples=None):
     sample_filter = SampleFilter(request.GET, queryset=samples)
     samples = sample_filter.qs
 
-    # Pagination
-    # p = Paginator(samples, 250)
-    # page = request.GET.get('page')
-    # samples = p.get_page(page)
-    # table = SampleStorageTable(samples)
-    # num_pgs = range(1, samples.paginator.num_pages + 1)
-
-    # Number of samples displayed on the current page
-    # num_samples_displayed = len(samples.object_list)
-    # num_samples_displayed = len(samples)
-    # total_samples = p.count
-    # start_sample = (samples.number - 1) * p.per_page + 1
-    # end_sample = min(samples.number * p.per_page, total_samples)
-   
     # sorting
     sort_by_col = request.GET.get('sort', 'created_at')
     current_order = request.GET.get('order', 'asc')
@@ -350,6 +336,21 @@ def sample_list(request, samples=None):
     else:
         samples = samples.order_by('-' + sort_by_col)
         new_order = 'asc'
+
+    # Pagination
+    p = Paginator(samples, 250)
+    page = request.GET.get('page')
+    samples = p.get_page(page)
+    table = SampleStorageTable(samples)
+    num_pgs = range(1, samples.paginator.num_pages + 1)
+
+    # Number of samples displayed on the current page
+    num_samples_displayed = len(samples.object_list)
+    num_samples_displayed = len(samples)
+    total_samples = p.count
+    start_sample = (samples.number - 1) * p.per_page + 1
+    end_sample = min(samples.number * p.per_page, total_samples)
+   
     table = SampleStorageTable(samples)
     num_samples_displayed = len(samples)
     # RequestConfig(request).configure(table)
@@ -361,14 +362,14 @@ def sample_list(request, samples=None):
         'sample_filter': sample_filter,
         'table': table,
         'samples': samples,
-        # 'num_pgs': num_pgs,
+        'num_pgs': num_pgs,
         'query_params': query_string,
         'search_form': SampleSearchForm(request.GET),
         'num_samples_displayed': num_samples_displayed,
         'new_order': new_order,
-        # 'total_samples': total_samples,
-        # 'start_sample': start_sample,
-        # 'end_sample': end_sample,
+        'total_samples': total_samples,
+        'start_sample': start_sample,
+        'end_sample': end_sample,
     })
 
 def get_search_results(samples, search_query):
@@ -505,7 +506,7 @@ def export_excel_csv(request, selections=None, action='export_excel'):
             writer.writerow(s)
         return response
 
-    elif action == 'export_excel' or action == 'export_excel_for_bakcup':
+    elif action == 'export_excel' or action == 'export_excel_for_backup':
         file_path = os.path.join(settings.MEDIA_ROOT, 'files/excel_import_template.xlsx')
         workbook = load_workbook(file_path)
         worksheet = workbook['Strain Data']
@@ -517,9 +518,9 @@ def export_excel_csv(request, selections=None, action='export_excel'):
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         response['Content-Disposition'] = f'attachment; filename="{timestamp}.samples_backup.xlsx"'
         
-        if action == 'export_excel_for_bakcup':
+        if action == 'export_excel_for_backup':
             backup_file_name = f'{timestamp}.samples_backup.xlsx'
-            backup_file_path = os.path.join(settings.MEDIA_ROOT, 'backup_files', backup_file_name)            
+            backup_file_path = os.path.join(settings.MEDIA_ROOT, 'backup_files', backup_file_name)
             workbook.save(backup_file_path)
             return backup_file_path
         else:
@@ -1111,13 +1112,22 @@ def get_bulk_sample_ids(start_id, end_id):
     return sample_ids
 
 def backup_and_upload(request):
-    script_path = os.path.join(os.getcwd(), 'KauffmanLabApp', 'backup_database.py')
-    result = subprocess.run(['python', script_path], capture_output=True, text=True, shell=True, check=True)
-    # result = subprocess.run(['python', 'KauffmanLabApp/backup_database.py'], capture_output=True, text=True)
-    if result.returncode == 0:
-        messages.success(request, "Backup successfull")
-        return redirect('admin_panel')
-    else:
-        messages.error(request, "Backup failed")
-        return redirect('admin_panel')
+    # script_path = os.path.join(os.getcwd(), 'KauffmanLabApp', 'backup_database.py')
+    script_path = "/Users/jatinchhabria/Documents/KauffmanLabProject/KauffmanLabApp/backup_database.py"
+    try:
+        result = subprocess.run(
+            ['python', script_path], capture_output=True, text=True, check=True
+        )
+        if result.returncode == 0:
+            messages.success(request, "Backup successful")
+        else:
+            messages.error(request, "Backup failed")
+    except subprocess.CalledProcessError as e:
+        print(f'Backup script error: {e.stderr}')
+        messages.error(request, f"Backup failed: {e.stderr}")
+    except Exception as e:
+        print(f'Unexpected error: {str(e)}')
+        messages.error(request, f"Unexpected error occurred: {str(e)}")
+
+    return redirect('admin_panel')
 
