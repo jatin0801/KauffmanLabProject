@@ -28,11 +28,12 @@ class DynamicForm(forms.Form):
         if self.form_group:
             mappings = VariableLabelMapping.objects.filter(form_group=self.form_group).order_by('order_no')
             for mapping in mappings:
+                prefix = str(datetime.datetime.now().year)[-2:] + str(datetime.datetime.now().timetuple().tm_yday)
                 field_kwargs = {
                     'label': mapping.label_name,
                     'required': mapping.field_required,
                     'initial': self.initial_values[mapping.variable_name] if(self.initial_values and self.initial_values[mapping.variable_name]) else None,
-                    'help_text': f'Prefix: {str(datetime.datetime.now().year)[-2:]}{datetime.datetime.now().timetuple().tm_yday} Format: {str(datetime.datetime.now().year)[-2:]}{datetime.datetime.now().timetuple().tm_yday}.(user_code).(material_type)(tube_id) Example: 21296.K21.GT001' if mapping.variable_name == 'id' or mapping.variable_name == 'start_id' or mapping.variable_name == 'end_id'  else mapping.help_text,
+                    'help_text': f'Prefix: {prefix} Format: {prefix}.(user_code).(material_type)(tube_id) Example: {prefix}.K21.GT001' if mapping.variable_name == 'id' or mapping.variable_name == 'start_id' or mapping.variable_name == 'end_id'  else mapping.help_text,
 
                 }
                 if mapping.choice_table:
@@ -61,6 +62,13 @@ class DynamicForm(forms.Form):
                         **field_kwargs, widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
                     )
                 elif mapping.field_type == 'select':
+                    if self.initial_values:
+                        current_value = self.initial_values.get(mapping.variable_name, None)
+                        if current_value:
+                            if hasattr(current_value, 'pk'):
+                                field_kwargs["initial"] = current_value.pk
+                            else:
+                                field_kwargs["initial"] = current_value
                     self.fields[mapping.variable_name] = forms.ChoiceField(
                         **field_kwargs, choices=choices, widget=forms.Select(attrs={'class': 'form-select'})
                     )

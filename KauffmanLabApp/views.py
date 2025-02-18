@@ -139,7 +139,7 @@ def user_register(request):
             user.save()
             user_profile.save()
 
-            return redirect('/')
+            return redirect('login')
     else:
         form = UserRegistrationForm()
 
@@ -969,7 +969,7 @@ def form_view(request, form_group):
                     data['end_id'] = end_id
                     save_sample(data, 'bulk')
                     messages.success(request, f'Samples {start_id} to {end_id} inserted successfuly')        
-                return redirect('/')
+                return redirect('sample_list')
             
             elif form_group=='storage_unit_type':
                 box = form.cleaned_data.get('box')
@@ -978,7 +978,7 @@ def form_view(request, form_group):
                 request.session['unit_type'] = unit_type
                 request.session.save()
                 save_storage(request)
-                return redirect('/')
+                return redirect('sample_list')
     else:
         filter_kwargs = None
         initial_values = {}

@@ -92,7 +92,9 @@
                 {% endif %}
                 
                 {% for i in num_pgs%}
-                    <li class="page-item"><a class="page-link" href="?{{query_params}}&page={{forloop.counter}}">{{ forloop.counter }}</a></li>
+                    <li class="page-item {% if forloop.counter == samples.number %}active{% endif %}">
+                        <a class="page-link" href="?{{ query_params }}&page={{ forloop.counter }}">{{ forloop.counter }}</a>
+                    </li>
                 {% endfor %}
 
                 {% if samples.has_next%}

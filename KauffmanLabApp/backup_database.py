@@ -49,7 +49,7 @@ if __name__ == "__main__":
         file_path = views.export_excel_csv(request=request, selections=None, action='export_excel_for_backup')
         if file_path:
             now = datetime.datetime.now()
-            timestamp = f"{str(now.year)[-2:]}{now.timetuple().tm_yday}_{now.strftime('%H%M%S')}"
+            timestamp = f"{str(now.year)[-2:]}{now.timetuple().tm_yday:03}_{now.strftime('%H%M%S')}"
             file_name = f'{timestamp}-samples_backup.xlsx'
             print("Uploading backup to Google Drive...")
             success = upload_to_google_drive(file_path, file_name, PARENT_FOLDER_ID)
