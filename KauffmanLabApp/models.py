@@ -159,6 +159,8 @@ class VariableLabelMapping(models.Model):
         ('multiplechoice', 'MultipleChoiceField'),
         ('typedmultiplechoice', 'TypedMultipleChoiceField'),
         ('select2tag', 'Select2TagField'),
+        ('searchmultiplechoice', 'SearchMultipleChoiceField'),
+        ('searchsinglechoice', 'SearchSingleChoiceField'),
     )
     variable_name = models.CharField(max_length=100)
     label_name = models.CharField(max_length=100)

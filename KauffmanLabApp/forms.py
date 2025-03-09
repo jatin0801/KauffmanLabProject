@@ -6,7 +6,8 @@ import datetime
 from .models import VariableLabelMapping, UserProfile, University
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
-from django.core.exceptions import ValidationError      
+from django.core.exceptions import ValidationError
+from django.forms.widgets import SelectMultiple
 
 
 class ExcelUploadForm(forms.Form):
@@ -41,12 +42,18 @@ class DynamicForm(forms.Form):
                     app_label = 'KauffmanLabApp'
                     model = apps.get_model(app_label, model_name)
                     if self.filter_kwargs:
-                        choices = [(getattr(choice, mapping.choice_id_field), getattr(choice, mapping.choice_text_field)) for choice in model.objects.filter(**self.filter_kwargs)]
+                        raw_choices = [(getattr(choice, mapping.choice_id_field), getattr(choice, mapping.choice_text_field)) for choice in model.objects.filter(**self.filter_kwargs)]
                     else:
-                        choices = [(getattr(choice, mapping.choice_id_field), getattr(choice, mapping.choice_text_field)) for choice in model.objects.all()]
+                        raw_choices = [(getattr(choice, mapping.choice_id_field), getattr(choice, mapping.choice_text_field)) for choice in model.objects.all()]
                 elif mapping.choices:
-                    choices = [(choice.id, choice.choice_text) for choice in mapping.choices.all()]
-
+                    raw_choices = [(choice.id, choice.choice_text) for choice in mapping.choices.all()]
+                
+                seen = set()
+                choices = []
+                for choice in raw_choices:
+                    if None not in choice and choice[1] not in seen:
+                        seen.add(choice[1])
+                        choices.append(choice)
 
                 # Prepend the placeholder option
                 if not field_kwargs['initial']:
@@ -71,6 +78,17 @@ class DynamicForm(forms.Form):
                                 field_kwargs["initial"] = current_value
                     self.fields[mapping.variable_name] = forms.ChoiceField(
                         **field_kwargs, choices=choices, widget=forms.Select(attrs={'class': 'form-select'})
+                    )
+                elif mapping.field_type == 'searchsinglechoice':
+                    if self.initial_values:
+                        current_value = self.initial_values.get(mapping.variable_name, None)
+                        if current_value:
+                            if hasattr(current_value, 'pk'):
+                                field_kwargs["initial"] = current_value.pk
+                            else:
+                                field_kwargs["initial"] = current_value
+                    self.fields[mapping.variable_name] = forms.ChoiceField(
+                        **field_kwargs, choices=choices, widget=forms.Select(attrs={'class': 'form-select select2'})
                     )
                 elif mapping.field_type == 'boolean':
                     self.fields[mapping.variable_name] = forms.BooleanField(
@@ -101,11 +119,31 @@ class DynamicForm(forms.Form):
                     self.fields[mapping.variable_name] = forms.MultipleChoiceField(
                         **field_kwargs, choices=choices, widget=forms.SelectMultiple(attrs={'class': 'form-control'})
                     )
+                elif mapping.field_type == 'searchmultiplechoice':
+                    self.fields[mapping.variable_name] = forms.MultipleChoiceField(
+                        **field_kwargs,
+                        choices=choices,
+                        widget=Select2MultipleWidget(attrs={'class': 'form-control select2'})
+                    )
                 elif mapping.field_type == 'typedmultiplechoice':
                     # choices = [(choice.id, choice.choice_text) for choice in mapping.choices.all()]
                     self.fields[mapping.variable_name] = forms.TypedMultipleChoiceField(
                         **field_kwargs, choices=choices, coerce=int, widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'})
                     )
+
+class Select2MultipleWidget(SelectMultiple):
+    class Media:
+        css = {
+            'all': ('https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css',)
+        }
+        js = ('https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js',
+              'https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js')
+
+    def __init__(self, attrs=None):
+        default_attrs = {'class': 'select2-multiple'}
+        if attrs:
+            default_attrs.update(attrs)
+        super().__init__(default_attrs)
 
 class UserRegistrationForm(forms.ModelForm):
     username = forms.CharField(max_length=150, widget=forms.TextInput(attrs={'class': 'form-control'}))

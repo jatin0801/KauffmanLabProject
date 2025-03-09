@@ -288,6 +288,8 @@ def sample_list(request, samples=None):
                 return sample_delete(request, sample_list)
             
             return redirect('sample_list')
+        else:
+            clear_session_data(request)
             
     
     # Get all samples
@@ -961,6 +963,9 @@ def form_view(request, form_group):
                     id = request.session.get('id', None)
                     data['id'] = id
                     save_sample(data, 'single')
+                    clear_session_data(request)
+                    request.session['sample_list'] = [id]
+                    request.session.save()
                     messages.success(request, f'Sample {id} inserted successfuly')
                 elif 'start_id' and 'end_id' in request.session:
                     start_id = request.session.get('start_id', None)
@@ -968,8 +973,14 @@ def form_view(request, form_group):
                     data['start_id'] = start_id
                     data['end_id'] = end_id
                     save_sample(data, 'bulk')
+                    clear_session_data(request)
+                    sample_list =  get_bulk_sample_ids(start_id, end_id)
+                    request.session['sample_list'] = sample_list
+                    request.session.save()
                     messages.success(request, f'Samples {start_id} to {end_id} inserted successfuly')        
-                return redirect('sample_list')
+                
+                return redirect('form_view', form_group='storage_samples')
+                # return redirect('sample_list')
             
             elif form_group=='storage_unit_type':
                 box = form.cleaned_data.get('box')
@@ -1063,6 +1074,7 @@ def get_storage_data_from_session(request):
 
 def save_storage(request):
     # Retrieve sample list and storage data from session
+    print("=== save_storage ===")
     sample_list = request.session.get('sample_list', [])
     storage_data = get_storage_data_from_session(request)
     updated_samples = []

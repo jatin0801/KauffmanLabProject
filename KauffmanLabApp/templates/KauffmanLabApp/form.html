@@ -2,28 +2,122 @@
 <!DOCTYPE html>
 <html>
     <head>
-        {% load static %}
-        <meta charset="utf-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+{% load static %}
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
         {% block title %}{{ form_header }}{% endblock %}
-        <meta name="description" content="">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="">
+<meta name="viewport" content="width=device-width, initial-scale=1">
     </head>
     <body>
-        {% block content %}
-        <div class='content-container'>
-            <h2>{{form_header}}</h2>
-            <hr>
-            <form method="post" enctype="multipart/form-data">
-                {% csrf_token %}
-                {{ form.as_p }}
-                <button type="submit" class="btn btn-primary">Submit</button>
-                <button type="button" class="btn btn-secondary" onclick="window.history.back();">Cancel</button>
-                <br/>
-                <br/>
+{% block content %}
+<div class='content-container'>
+    <h2>{{form_header}}</h2>
+    <hr>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">Submit</button>
+        <button type="button" class="btn btn-secondary" onclick="window.history.back();">Cancel</button>
+        <br/>
+        <br/>
+    </form>
+</div>
 
-            </form>
-            {% endblock %}
-        </div>
-    </body>
-</html>
+<script>
+    $(document).ready(function() {
+        $('.select2').select2({
+            placeholder: "Select an option",
+            allowClear: true,
+            width: '100%',
+            closeOnSelect: true,
+            dropdownCssClass: 'bootstrap-select2-dropdown',
+            selectionCssClass: 'bootstrap-select2-selection'
+        });
+    });
+
+    $(document).ready(function() {
+        $('.select2-multiple').select2({
+            placeholder: "Select options",
+            allowClear: true,
+            closeOnSelect: false,
+            width: '100%', // Added width property for consistency
+            dropdownCssClass: 'bootstrap-select2-dropdown',
+            selectionCssClass: 'bootstrap-select2-selection',
+            sorter: function(data) {
+                let selected = [];
+                let notSelected = [];
+    
+                $.each(data, function(index, item) {
+                    if ($(`.select2-multiple option[value='${item.id}']`).prop('selected')) {
+                        selected.push(item);
+                    } else {
+                        notSelected.push(item);
+                    }
+                });
+    
+                return selected.concat(notSelected);
+            }
+        });
+    });
+</script>
+
+<style>
+    /* Select2 Dropdown Styling */
+    .bootstrap-select2-dropdown {
+        z-index: 1050; /* Adjusted for Bootstrap modal compatibility */
+        border: 1px solid #ced4da;
+        border-radius: 0.375rem; /* Match Bootstrap's form elements */
+        padding: 0.375rem 0.75rem;
+        font-size: 1rem;
+        line-height: 1.5;
+        color: #495057;
+        background-color: #fff;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+
+    /* Select2 Selection Box (Matches Bootstrap Form Elements) */
+    .bootstrap-select2-selection {
+        display: flex; /* Ensures correct alignment */
+        align-items: center;
+        border: 1px solid #ced4da;
+        border-radius: 0.375rem;
+        padding: 0.375rem 0.75rem;
+        font-size: 1rem;
+        line-height: 1.5;
+        color: #495057;
+        background-color: #fff;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+
+    /* Focus Effect (Matches Bootstrap Form Focus Style) */
+    .bootstrap-select2-selection:focus,
+    .bootstrap-select2-dropdown:focus {
+        border-color: #86b7fe;
+        outline: 0;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+
+    /* Hover Effect */
+    .bootstrap-select2-selection:hover {
+        border-color: #b3b3b3;
+    }
+
+    /* Select2 Dropdown Styling */
+    .select2-container--default .select2-selection--single {
+        height: auto !important; /* Prevents height issues */
+        padding: 0.375rem 0.75rem;
+    }
+
+    /* Adjust Dropdown Items */
+    .select2-container--default .select2-results__option {
+        padding: 0.5rem;
+    }
+
+    /* Highlight Selected Item */
+    .select2-container--default .select2-results__option--highlighted {
+        background-color: #0d6efd;
+        color: white;
+    }
+</style>
+{% endblock %}
