@@ -42,6 +42,14 @@
                     <a href="{% url 'backup_and_upload' %}" class="btn btn-primary">Go</a>
                 </div>
             </div>
+            <div class="card">
+                {% comment %} <h5 class="card-header">Featured</h5> {% endcomment %}
+                <div class="card-body">
+                    <h5 class="card-title">Review Deleted Samples</h5>
+                    <p class="card-text">Review Deleted Samples</p>
+                    <a href="{% url 'su_review_deleted_samples' %}" class="btn btn-primary">Go</a>
+                </div>
+            </div>
             {% endif %}
         </div>
         {% endblock %}

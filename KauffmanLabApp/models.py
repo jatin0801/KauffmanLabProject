@@ -3,6 +3,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.contrib.auth.models import User as AuthUser
 from django.utils import timezone
+from django.utils.timezone import now
 
 # STORAGE
 class University(models.Model):
@@ -138,6 +139,53 @@ class Sample(models.Model):
 
     def __str__(self):
         return self.id
+
+class DeletedSample(models.Model):
+    id = models.CharField(max_length=255, primary_key=True)
+    labnb_pgno = models.CharField(max_length=255)
+    label_note = models.CharField(max_length=255)
+    organism_type = models.ForeignKey('OrganismType', blank=True, null=True, on_delete=models.SET_NULL)
+    material_type = models.CharField(max_length=255)
+    host_species = models.CharField(max_length=255, blank=True, null=True)
+    host_strain = models.CharField(max_length=255, blank=True, null=True)
+    host_id = models.CharField(max_length=255, blank=True, null=True)
+    storage_solution = models.CharField(max_length=255, default='error')
+    lab_lotno = models.CharField(max_length=255, default='error')
+    owner = models.ForeignKey('UserProfile', blank=True, null=True, on_delete=models.SET_NULL)
+    benchling_link = models.CharField(max_length=255, default='error')
+    is_sequenced = models.BooleanField(blank=True, null=True)
+    parent_name = models.CharField(max_length=255, blank=True, null=True)
+    general_comments = models.TextField(blank=True, null=True)
+    genetic_modifications = models.TextField(blank=True, null=True)
+    species = models.CharField(max_length=255, blank=True, null=True)
+    strainname_main = models.CharField(max_length=255, blank=True, null=True)
+    strainname_core = models.CharField(max_length=255, blank=True, null=True)
+    strainname_other = models.TextField(blank=True, null=True)
+    strainname_atcc = models.CharField(max_length=255, blank=True, null=True)
+    strain_link = models.CharField(max_length=255, blank=True, null=True)
+    source_name = models.CharField(max_length=255, default='error')
+    is_purchased = models.BooleanField(default=False, blank=True, null=True)
+    source_lotno = models.CharField(max_length=255, default='error')
+    is_undermta = models.BooleanField(blank=True, null=True)
+    source_recommendedmedia = models.CharField(max_length=255, blank=True, null=True)
+    tag = models.TextField(blank=True, null=True)
+    status_contamination = models.CharField(max_length=255, blank=True, null=True)
+    status_QC = models.TextField(blank=True, null=True)
+    status_physical = models.ForeignKey('PhysicalStatus', blank=True, null=True, on_delete=models.SET_NULL)
+    shared_with = models.TextField(blank=True, null=True)
+    is_protected = models.BooleanField(default=False, blank=True, null=True)
+    sequencing_infos = models.TextField(blank=True, null=True)
+    plasmids = models.TextField(blank=True, null=True)
+    antibiotics = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(editable=False)
+    storage_id = models.OneToOneField('Storage', null=True, on_delete=models.CASCADE)
+
+    # Additional fields for tracking deletions
+    deleted_at = models.DateTimeField(default=timezone.now)
+    deleted_by = models.ForeignKey('UserProfile', on_delete=models.SET_NULL, null=True, blank=True, related_name="deleted_by")
+
+    def __str__(self):
+        return f"Deleted Sample {self.id} by {self.deleted_by}"
 
 class Choice(models.Model):
     choice_text = models.CharField(max_length=100)

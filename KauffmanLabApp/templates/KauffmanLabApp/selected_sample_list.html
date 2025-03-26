@@ -6,7 +6,7 @@
     {% load static %}
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    {% block title %}Sample List Page{% endblock %}
+    {% block title %}Selected Sample List Page{% endblock %}
     <meta name="description" content="">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="{% static 'KauffmanLabApp/style.css' %}" rel="stylesheet">
@@ -105,10 +105,8 @@
                 <li class="page-item disabled"><a class="page-link" href="#">Last &raquo</a></li>
                 {% endif %}
                 </ul>
-            </nav>
-            <button type="submit" name="action" value="save_selection" class="btn btn-primary">Save Selection</button>
-            {% comment %} <button type="submit" class="btn btn-primary" onclick="location.href='{% url 'selected_sample_list' %}';">View Selection</button> {% endcomment %}
-            <button type="submit" name="action" value="clear_selection" class="btn btn-secondary">Clear Selection</button>
+            </nav>            
+            <button type="submit" name="action" value="remove_selection" class="btn btn-primary">Remove Selection</button>
             <br/>
             <br/>
             <div class="d-flex gap-2 align-items-center">
@@ -127,9 +125,6 @@
             </div>
         </form>
         <div class="d-flex flex-column gap-2 mt-3">
-            <button type="submit" class="btn btn-success" onclick="location.href='{% url 'selected_sample_list' %}';">
-                View Selection
-            </button>
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary" onclick="location.href='{% url 'download_excel_template' %}';">
                     Download Excel Template
@@ -140,7 +135,7 @@
             </div>
             {% if request.user.is_staff %}
             <button type="submit" class="btn btn-danger" onclick="location.href='{% url 'delete_samples' %}';">
-                Delete Selected Samples
+                Delete ALL Samples
             </button>
             {% endif %}
         </div>

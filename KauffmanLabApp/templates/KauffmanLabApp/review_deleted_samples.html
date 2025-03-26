@@ -6,7 +6,7 @@
     {% load static %}
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    {% block title %}Sample List Page{% endblock %}
+    {% block title %}Review Deleted Samples{% endblock %}
     <meta name="description" content="">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="{% static 'KauffmanLabApp/style.css' %}" rel="stylesheet">
@@ -109,40 +109,23 @@
             <button type="submit" name="action" value="save_selection" class="btn btn-primary">Save Selection</button>
             {% comment %} <button type="submit" class="btn btn-primary" onclick="location.href='{% url 'selected_sample_list' %}';">View Selection</button> {% endcomment %}
             <button type="submit" name="action" value="clear_selection" class="btn btn-secondary">Clear Selection</button>
+            {% if request.user.is_superuser %}
+            <button type="submit" name="action" value="permanent_delete" class="btn btn-danger"
+            onclick="if (!confirm('Are you sure you want to permanently delete these samples? This action cannot be undone.')) { event.preventDefault(); return false; }">
+                Permanently Delete
+            </button>            
+            {% endif %}
+            <button type="submit" name="action" value="recover_samples" class="btn btn-success"
+            onclick="if (!confirm('Are you sure you want to recover these samples?')) { event.preventDefault(); return false; }">
+                Recover Samples
+            </button>
             <br/>
             <br/>
-            <div class="d-flex gap-2 align-items-center">
-                <button type="submit" name="action" value="add_bulk_storage" class="btn btn-primary">
-                    Add Bulk Storage Details
-                </button>
-                <div class="dropdown">
-                    <button class="btn btn-secondary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        Export Data
-                    </button>
-                    <ul class="dropdown-menu" aria-labelledby="exportDropdown">
-                        <li><button type="submit" name="action" value="export_csv" class="dropdown-item">Export CSV</button></li>
-                        <li><button type="submit" name="action" value="export_excel" class="dropdown-item">Export Excel</button></li>
-                    </ul>
-                </div>
-            </div>
         </form>
         <div class="d-flex flex-column gap-2 mt-3">
             <button type="submit" class="btn btn-success" onclick="location.href='{% url 'selected_sample_list' %}';">
                 View Selection
             </button>
-            <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-primary" onclick="location.href='{% url 'download_excel_template' %}';">
-                    Download Excel Template
-                </button>
-                <button type="submit" class="btn btn-primary" onclick="location.href='{% url 'upload_excel' %}';">
-                    Import from Excel
-                </button>
-            </div>
-            {% if request.user.is_staff %}
-            <button type="submit" class="btn btn-danger" onclick="location.href='{% url 'delete_samples' %}';">
-                Delete Selected Samples
-            </button>
-            {% endif %}
         </div>
       
     </div>

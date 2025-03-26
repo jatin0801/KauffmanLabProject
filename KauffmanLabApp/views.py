@@ -6,14 +6,14 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.decorators import login_required, user_passes_test
-from .models import UserProfile, Sample, Storage, VariableLabelMapping, OrganismType, University, Room, StorageUnit, Shelf, Rack, PhysicalStatus
+from .models import *
 from django.db.models import ForeignKey
 from django.db import transaction
 from django.apps import apps
 from django_tables2 import RequestConfig
 from .tables import SampleStorageTable
 from .filters import SampleFilter
-from .forms import DynamicForm, ConfirmationForm, UserRegistrationForm, ExcelUploadForm, SampleSearchForm
+from .forms import *
 
 import csv
 import pandas as pd
@@ -193,64 +193,6 @@ def sample_edit(request, sample_id):
             messages.warning(request, 'Update failed.')
         return redirect('sample_detail', pk=sample.id)
 
-# def sample_discard(request, sample_id):
-#     sample = get_object_or_404(Sample, id=sample_id)
-#     if request.method == 'POST':
-#         form = ConfirmationForm(request.POST, confirm_message=f'Are you sure you want to discard sample {sample.id}?')
-#         if form.is_valid():
-#             if form.cleaned_data['confirm']:
-#                 sample.is_discarded = True
-#                 sample.save()
-#                 messages.success(request, f'Sample {sample.id} discarded!')
-#                 return redirect('sample_list')  # Replace 'sample_list' with your actual view name
-#             else:
-#                 messages.info(request, "Discard action cancelled.")
-#                 return redirect('sample_detail', pk=sample.id)
-#     else:
-#         form = ConfirmationForm(request.POST, confirm_message=f'Are you sure you want to discard sample {sample.id}?')
-#     return render(request, 'KauffmanLabApp/confirmation_page.html', {'form': form, 'sample': sample})
-
-# TODO: always cancels deletion because of confirmation page
-def sample_delete(request, sample_list):
-    samples_to_delete = Sample.objects.filter(id__in=sample_list)
-    # samples_to_delete_discarded = Sample.objects.filter(id__in=sample_list, is_discarded=True)
-    if request.method == 'POST':
-        form = ConfirmationForm(request.POST)
-        if form.is_valid():
-            if form.cleaned_data['confirm']:
-                samples_to_delete.delete()
-                messages.success(request, f"{len(sample_list)} discarded samples deleted successfully.")
-                return redirect('sample_list')
-            else:
-                messages.info(request, "Deletion canceled.")
-                return redirect('sample_list')  # Redirect or render another page if canceled
-    else:
-        samples_to_delete_ids = list(samples_to_delete.values_list('id', flat=True))
-        # samples_to_delete_discarded_ids = list(samples_to_delete_discarded.values_list('id', flat=True))
-        # samples_to_delete_not_discarded_ids = list(set(samples_to_delete_ids) - set(samples_to_delete_discarded_ids))
-
-        # if samples_to_delete_not_discarded_ids:
-        #     confirm_message = (
-        #                     f"Are you sure you want to delete the samples?\n"
-        #                     f"<br/> Actions:"
-        #                     f"<ul>"
-        #                     f"  <li>Delete Samples:<ul>{sample_list}</ul></li>"
-        #                     f"  <li>Samples that are not discarded:<ul>{samples_to_delete_not_discarded_ids}</ul></li>"
-        #                     f"</ul>"
-        #                 )
-        # else:
-        confirm_message = (
-                        f"Are you sure you want to delete the samples?\n"
-                        f"<br/> Actions:"
-                        f"<ul>"
-                        f"  <li>Delete Samples:<ul>{samples_to_delete_ids}</ul></li>"
-                        f"</ul>"
-                    )
-        form = ConfirmationForm(request.POST, confirm_message=confirm_message)
-
-    return render(request, 'KauffmanLabApp/confirmation_page.html', {'form': form})
-
-# TODO: diplay values from storage table. filters working fine.
 @login_required
 def sample_list(request, samples=None):
     if request.method == 'POST':
@@ -282,16 +224,9 @@ def sample_list(request, samples=None):
                 clear_session_data(request)
                 messages.info(request, f'Sample selection cleared')
             
-            elif action == 'sample_delete':
-                if not sample_list and selections:
-                    sample_list = selections              
-                return sample_delete(request, sample_list)
-            
             return redirect('sample_list')
         else:
             clear_session_data(request)
-            
-    
     # Get all samples
     if samples==None:
         samples = Sample.objects.all()
@@ -301,15 +236,6 @@ def sample_list(request, samples=None):
     if search_query:
         samples = get_search_results(samples, search_query)
         
-    # Handle sorting
-    # sort_by_col = request.GET.get('sort', '-id')
-    # field_names = [field.name for field in Sample._meta.get_fields()]
-    # if sort_by_col in field_names:
-    #     samples = samples.order_by('-'+sort_by_col)
-    # else:
-    #     messages.info(request, 'Sorry! I cannot sort by storage related field')
-    #     samples = samples.order_by('-id')
-
     # Apply filters
     sample_filter = SampleFilter(request.GET, queryset=samples)
     samples = sample_filter.qs
@@ -355,12 +281,132 @@ def sample_list(request, samples=None):
    
     table = SampleStorageTable(samples)
     num_samples_displayed = len(samples)
-    # RequestConfig(request).configure(table)
 
     query_params = request.GET.copy()
     query_params.pop('page', None)  # Remove the 'page' parameter if present
     query_string = query_params.urlencode()            
     return render(request, 'KauffmanLabApp/sample_list.html', {
+        'sample_filter': sample_filter,
+        'table': table,
+        'samples': samples,
+        'num_pgs': num_pgs,
+        'query_params': query_string,
+        'search_form': SampleSearchForm(request.GET),
+        'num_samples_displayed': num_samples_displayed,
+        'new_order': new_order,
+        'total_samples': total_samples,
+        'start_sample': start_sample,
+        'end_sample': end_sample,
+    })
+
+
+def selected_sample_list(request):
+    if request.method == 'POST':
+        selections = request.POST.getlist('selection')
+        action = request.POST.get('action')    
+        if action:
+            sample_list = request.session.get('sample_list', [])
+            
+            if action == 'add_bulk_storage':
+                if selections:
+                    sample_list = selections              
+                return add_bulk_storage(request, sample_list)
+            
+            elif action == 'remove_selection':
+                if selections:
+                    sample_list = [s for s in sample_list if s not in selections]
+                request.session['sample_list'] = sample_list
+                request.session.save()
+                if sample_list:
+                    formatted_list = ', '.join(sample_list)
+                    messages.success(request, f'Selected samples: {formatted_list}')
+                else:
+                    messages.info(request, f'Sample selection cleared')
+                    return redirect('sample_list')
+            
+            elif action == 'export_csv':
+                if selections:
+                    sample_list = selections 
+                return export_excel_csv(request, sample_list, action)
+            
+            elif action == 'export_excel':
+                if selections:
+                    sample_list = selections
+                return export_excel_csv(request, sample_list, action)
+            
+            elif action == 'clear_selection':
+                clear_session_data(request)
+                messages.info(request, f'Sample selection cleared')
+            
+            return redirect('selected_sample_list')
+        
+    print("===selected_sample_list===")
+    sample_list = request.session.get('sample_list', [])
+    print("==sample_list", sample_list)
+    samples = Sample.objects.filter(id__in=sample_list)
+    if not samples:
+        samples = DeletedSample.objects.filter(id__in=sample_list)
+        if samples:
+            messages.info(request, "Reviewing deleted selected samples...")
+    if not samples:
+        messages.warning(request, "No samples selected!")
+        # return redirect('sample_list')
+        return redirect(request.META.get('HTTP_REFERER', 'default_view_name')) #returning to previous page
+    # Handle search filtering
+    search_query = request.GET.get('search')
+    if search_query:
+        samples = get_search_results(samples, search_query)
+        
+    # Apply filters
+    sample_filter = SampleFilter(request.GET, queryset=samples)
+    samples = sample_filter.qs
+
+    # sorting
+    sort_by_col = request.GET.get('sort', 'created_at')
+    current_order = request.GET.get('order', 'asc')
+
+    foreign_key_sort_map = {
+    'organism_type': 'organism_type__organism_type',
+    'owner': 'owner__user_short', 
+    'status_physical': 'status_physical__name',
+    'storage_id.university_name.university_name': 'storage_id__university_name__university_name',
+    'storage_id.room_number.room_number': 'storage_id__room_number__room_number',
+    'storage_id.storage_unit.storage_unit': 'storage_id__storage_unit__storage_unit',
+    'storage_id.shelf.shelf': 'storage_id__shelf__shelf',
+    'storage_id.rack.rack': 'storage_id__rack__rack',
+    'storage_id.box': 'storage_id__box',
+    'storage_id.unit_type': 'storage_id__unit_type',
+    }
+    sort_by_col = foreign_key_sort_map.get(sort_by_col, sort_by_col)
+    
+    if current_order == 'asc':
+        samples = samples.order_by(sort_by_col)
+        new_order = 'desc'
+    else:
+        samples = samples.order_by('-' + sort_by_col)
+        new_order = 'asc'
+
+    # Pagination
+    p = Paginator(samples, 250)
+    page = request.GET.get('page')
+    samples = p.get_page(page)
+    table = SampleStorageTable(samples)
+    num_pgs = range(1, samples.paginator.num_pages + 1)
+
+    # Number of samples displayed on the current page
+    num_samples_displayed = len(samples.object_list)
+    num_samples_displayed = len(samples)
+    total_samples = p.count
+    start_sample = (samples.number - 1) * p.per_page + 1
+    end_sample = min(samples.number * p.per_page, total_samples)
+   
+    table = SampleStorageTable(samples)
+    num_samples_displayed = len(samples)
+
+    query_params = request.GET.copy()
+    query_params.pop('page', None)  # Remove the 'page' parameter if present
+    query_string = query_params.urlencode()            
+    return render(request, 'KauffmanLabApp/selected_sample_list.html', {
         'sample_filter': sample_filter,
         'table': table,
         'samples': samples,
@@ -531,16 +577,20 @@ def export_excel_csv(request, selections=None, action='export_excel'):
 
 def save_storage_data_to_session(request, storage_instance):
     for field in storage_instance._meta.get_fields():
-        value = getattr(storage_instance, field.name)
-        if field.auto_created and not field.concrete:
-            continue
-        if isinstance(field, ForeignKey):
-            if value:
-                request.session[field.name] = value.pk
+        if not field.auto_created:
+            try:
+                value = getattr(storage_instance, field.name)
+            except field.related_model.DoesNotExist:
+                continue
+            if field.auto_created and not field.concrete:
+                continue
+            if isinstance(field, ForeignKey):
+                if value:
+                    request.session[field.name] = value.pk
+                else:
+                    request.session[field.name] = None
             else:
-                request.session[field.name] = None
-        else:
-            request.session[field.name] = value
+                request.session[field.name] = value
     request.session.save()
 
 def sample_detail(request, pk):
@@ -1122,6 +1172,278 @@ def get_bulk_sample_ids(start_id, end_id):
     prefix = end_id[:-3]
     sample_ids = [f"{prefix}{i:03d}" for i in range(start, end + 1)]
     return sample_ids
+
+@user_passes_test(lambda u: u.is_staff)
+def delete_samples(request):
+    sample_ids = request.session.get("sample_list", [])
+
+    if not sample_ids:
+        messages.warning(request, "No samples selected.")
+        return redirect("sample_list")
+
+    samples = Sample.objects.filter(id__in=sample_ids)
+
+    if request.method == "POST":
+        form = ConfirmationForm(request.POST)
+        if form.is_valid():
+            if not form.cleaned_data.get("confirm"):
+                messages.info(request, "Deletion canceled.")
+                return redirect("sample_list")
+            
+            user_profile = UserProfile.objects.get(auth_user=request.user)  # Get the UserProfile
+            
+            # Bulk create DeletedSample instances before deleting original samples
+            deleted_samples = [
+                DeletedSample(
+                    id=sample.id,
+                    labnb_pgno=sample.labnb_pgno,
+                    label_note=sample.label_note,
+                    organism_type=sample.organism_type,
+                    material_type=sample.material_type,
+                    host_species=sample.host_species,
+                    host_strain=sample.host_strain,
+                    host_id=sample.host_id,
+                    storage_solution=sample.storage_solution,
+                    lab_lotno=sample.lab_lotno,
+                    owner=sample.owner,
+                    benchling_link=sample.benchling_link,
+                    is_sequenced=sample.is_sequenced,
+                    parent_name=sample.parent_name,
+                    general_comments=sample.general_comments,
+                    genetic_modifications=sample.genetic_modifications,
+                    species=sample.species,
+                    strainname_main=sample.strainname_main,
+                    strainname_core=sample.strainname_core,
+                    strainname_other=sample.strainname_other,
+                    strainname_atcc=sample.strainname_atcc,
+                    strain_link=sample.strain_link,
+                    source_name=sample.source_name,
+                    is_purchased=sample.is_purchased,
+                    source_lotno=sample.source_lotno,
+                    is_undermta=sample.is_undermta,
+                    source_recommendedmedia=sample.source_recommendedmedia,
+                    tag=sample.tag,
+                    status_contamination=sample.status_contamination,
+                    status_QC=sample.status_QC,
+                    status_physical=sample.status_physical,
+                    shared_with=sample.shared_with,
+                    is_protected=sample.is_protected,
+                    sequencing_infos=sample.sequencing_infos,
+                    plasmids=sample.plasmids,
+                    antibiotics=sample.antibiotics,
+                    created_at=sample.created_at,
+                    storage_id=sample.storage_id,  # Ensure the foreign key is handled properly
+                    deleted_at=now(),
+                    deleted_by=user_profile,
+                )
+                for sample in samples
+            ]
+            
+            DeletedSample.objects.bulk_create(deleted_samples)  # Bulk insert deleted samples
+            
+            Sample.objects.filter(id__in=sample_ids).delete()  # Bulk delete the original samples
+            
+            clear_session_data(request)
+            messages.success(request, f"Deleted samples: {', '.join(sample_ids)}")
+            return redirect('sample_list')
+    
+    else:
+        sample_list_items = "".join(f"<li>{sample_id}</li>" for sample_id in sample_ids)
+        confirm_message = f"""
+            <p>Are you sure you want to delete the following {len(samples)} selected samples?</p>
+            <ul>{sample_list_items}</ul>
+        """
+        form = ConfirmationForm(confirm_message=confirm_message)
+        return render(request, "KauffmanLabApp/confirmation_page.html", {"form": form, "samples": samples})
+    
+def su_review_deleted_samples(request):
+
+    if request.method == 'POST':
+        selections = request.POST.getlist('selection')
+        action = request.POST.get('action')    
+        if action:
+            sample_list = request.session.get('sample_list', [])
+            
+            if action == 'save_selection':
+                sample_list.extend(selections)
+                sample_list=list(set(sample_list))
+                request.session['sample_list'] = sample_list
+                request.session.save()
+                formatted_list = ', '.join(sample_list) if sample_list else 'None'
+                messages.success(request, f'Selected samples: {formatted_list}')
+            
+            # elif action == 'view_selection':
+            elif action == 'clear_selection':
+                clear_session_data(request)
+                messages.info(request, f'Sample selection cleared')
+            
+            elif action == 'permanent_delete' and request.user.is_superuser:
+                # Only superusers can permanently delete samples
+                # Combine both the current selections and any samples saved in the session
+                all_selected_samples = list(set(selections + sample_list))
+                
+                if all_selected_samples:
+                    deleted_count = DeletedSample.objects.filter(id__in=all_selected_samples).delete()[0]
+                    messages.success(request, f'Permanently deleted {deleted_count} samples')
+                    # Clear the session after deletion
+                    clear_session_data(request)
+                else:
+                    messages.error(request, 'No samples selected for deletion')
+            
+            elif action == 'recover_samples':
+                # Recover selected samples by moving them from DeletedSample to Sample table
+                # Combine both the current selections and any samples saved in the session
+                all_selected_samples = list(set(selections + sample_list))
+                
+                if all_selected_samples:
+                    recovered_count = 0
+                    
+                    for sample_id in all_selected_samples:
+                        try:
+                            # Get the deleted sample record
+                            deleted_sample = DeletedSample.objects.get(id=sample_id)
+
+                            storage = deleted_sample.storage_id
+
+                            if storage:
+                                deleted_sample.storage_id = None
+                                deleted_sample.save(update_fields=['storage_id'])
+                            
+                            # Create a new Sample record with all fields from DeletedSample
+                            new_sample = Sample(
+                                id=deleted_sample.id,
+                                labnb_pgno=deleted_sample.labnb_pgno,
+                                label_note=deleted_sample.label_note,
+                                organism_type=deleted_sample.organism_type,
+                                material_type=deleted_sample.material_type,
+                                host_species=deleted_sample.host_species,
+                                host_strain=deleted_sample.host_strain,
+                                host_id=deleted_sample.host_id,
+                                storage_solution=deleted_sample.storage_solution,
+                                lab_lotno=deleted_sample.lab_lotno,
+                                owner=deleted_sample.owner,
+                                benchling_link=deleted_sample.benchling_link,
+                                is_sequenced=deleted_sample.is_sequenced,
+                                parent_name=deleted_sample.parent_name,
+                                general_comments=deleted_sample.general_comments,
+                                genetic_modifications=deleted_sample.genetic_modifications,
+                                species=deleted_sample.species,
+                                strainname_main=deleted_sample.strainname_main,
+                                strainname_core=deleted_sample.strainname_core,
+                                strainname_other=deleted_sample.strainname_other,
+                                strainname_atcc=deleted_sample.strainname_atcc,
+                                strain_link=deleted_sample.strain_link,
+                                source_name=deleted_sample.source_name,
+                                is_purchased=deleted_sample.is_purchased,
+                                source_lotno=deleted_sample.source_lotno,
+                                is_undermta=deleted_sample.is_undermta,
+                                source_recommendedmedia=deleted_sample.source_recommendedmedia,
+                                tag=deleted_sample.tag,
+                                status_contamination=deleted_sample.status_contamination,
+                                status_QC=deleted_sample.status_QC,
+                                status_physical=deleted_sample.status_physical,
+                                shared_with=deleted_sample.shared_with,
+                                is_protected=deleted_sample.is_protected,
+                                sequencing_infos=deleted_sample.sequencing_infos,
+                                plasmids=deleted_sample.plasmids,
+                                antibiotics=deleted_sample.antibiotics,
+                                created_at=deleted_sample.created_at,
+                                storage_id=deleted_sample.storage_id
+                            )
+                            new_sample.save(force_insert=True)
+                            
+                            # Remove from the DeletedSample table
+                            deleted_sample.delete()
+                            recovered_count += 1
+                            
+                        except DeletedSample.DoesNotExist:
+                            continue
+                        except Exception as e:
+                            messages.error(request, f'Error recovering sample {sample_id}: {str(e)}')
+                    
+                    if recovered_count > 0:
+                        messages.success(request, f'Successfully recovered {recovered_count} samples')
+                        # Clear the session after recovery
+                        clear_session_data(request)
+                    else:
+                        messages.warning(request, 'No samples were recovered')
+                else:
+                    messages.error(request, 'No samples selected for recovery')
+            
+            return redirect('su_review_deleted_samples')
+            
+        else:
+            clear_session_data(request)
+
+    samples = DeletedSample.objects.all()
+
+    # Handle search filtering
+    search_query = request.GET.get('search')
+    if search_query:
+        samples = get_search_results(samples, search_query)
+        
+    # Apply filters
+    sample_filter = SampleFilter(request.GET, queryset=samples)
+    samples = sample_filter.qs
+
+    # sorting
+    sort_by_col = request.GET.get('sort', 'created_at')
+    current_order = request.GET.get('order', 'asc')
+
+    foreign_key_sort_map = {
+    'organism_type': 'organism_type__organism_type',
+    'owner': 'owner__user_short', 
+    'status_physical': 'status_physical__name',
+    'storage_id.university_name.university_name': 'storage_id__university_name__university_name',
+    'storage_id.room_number.room_number': 'storage_id__room_number__room_number',
+    'storage_id.storage_unit.storage_unit': 'storage_id__storage_unit__storage_unit',
+    'storage_id.shelf.shelf': 'storage_id__shelf__shelf',
+    'storage_id.rack.rack': 'storage_id__rack__rack',
+    'storage_id.box': 'storage_id__box',
+    'storage_id.unit_type': 'storage_id__unit_type',
+    }
+    sort_by_col = foreign_key_sort_map.get(sort_by_col, sort_by_col)
+    
+    if current_order == 'asc':
+        samples = samples.order_by(sort_by_col)
+        new_order = 'desc'
+    else:
+        samples = samples.order_by('-' + sort_by_col)
+        new_order = 'asc'
+
+    # Pagination
+    p = Paginator(samples, 250)
+    page = request.GET.get('page')
+    samples = p.get_page(page)
+    table = SampleStorageTable(samples)
+    num_pgs = range(1, samples.paginator.num_pages + 1)
+
+    # Number of samples displayed on the current page
+    num_samples_displayed = len(samples.object_list)
+    num_samples_displayed = len(samples)
+    total_samples = p.count
+    start_sample = (samples.number - 1) * p.per_page + 1
+    end_sample = min(samples.number * p.per_page, total_samples)
+   
+    table = SampleStorageTable(samples)
+    num_samples_displayed = len(samples)
+
+    query_params = request.GET.copy()
+    query_params.pop('page', None)  # Remove the 'page' parameter if present
+    query_string = query_params.urlencode()            
+    return render(request, 'KauffmanLabApp/review_deleted_samples.html', {
+        'sample_filter': sample_filter,
+        'table': table,
+        'samples': samples,
+        'num_pgs': num_pgs,
+        'query_params': query_string,
+        'search_form': SampleSearchForm(request.GET),
+        'num_samples_displayed': num_samples_displayed,
+        'new_order': new_order,
+        'total_samples': total_samples,
+        'start_sample': start_sample,
+        'end_sample': end_sample,
+    })
 
 def backup_and_upload(request):
     # script_path = os.path.join(os.getcwd(), 'KauffmanLabApp', 'backup_database.py')
