@@ -731,8 +731,8 @@ def upload_excel(request):
                         f"Are you sure you want to import data from {excel_file.name}?\n"
                         f"<br/> Actions:"
                         f"<ul>"
-                        f"  <li>Update Samples:<ul>{existing_samples_list}</ul></li>"
-                        f"  <li>Add Samples:<ul>{new_samples_list}</ul></li>"
+                        f"  <li><h3>Update Samples:</h3><ul>{existing_samples_list}</ul></li>"
+                        f"  <li><h3>Add Samples:</h3><ul>{new_samples_list}</ul></li>"
                         f"</ul>"
                     )
                     form = ConfirmationForm(request.POST, confirm_message=confirm_message)
@@ -870,8 +870,15 @@ def process_excel_file(request, excel_file):
         sample_data = replace_nan_with_blank(sample_data)
         storage_data = replace_nan_with_blank(storage_data)
 
+        sample_id = sample_data.pop('id')
+        existing_sample = None
+        try:
+            existing_sample = Sample.objects.get(id=sample_id)
+        except Sample.DoesNotExist:
+            existing_sample = None
+
         # Create or get related Storage object
-        if storage_data['university_name'] is not None and storage_data['room_number'] is not None and storage_data['storage_unit'] is not None:
+        if storage_data['university_name'] != '' and storage_data['room_number'] != '' and storage_data['storage_unit'] != '':
             try:
                 # Lookup for University
                 university_name = storage_data.pop('university_name').strip()
@@ -901,30 +908,60 @@ def process_excel_file(request, excel_file):
                 else:
                     raise Rack.DoesNotExist(f"No rack found for value {rack_value} in shelf {shelf}")
                 
-                # Create or get Storage
-                storage = Storage.objects.create(
-                    university_name=university,
-                    room_number=room,
-                    storage_unit=storage_unit,
-                    shelf=shelf,
-                    rack=rack,
-                    **storage_data
-                )
+                if existing_sample and hasattr(existing_sample, 'storage_id') and existing_sample.storage_id:
+                    print("Existing sample found with storage_id", existing_sample.storage_id.id)
+                    # Update existing storage
+                    storage = existing_sample.storage_id
+                    storage.university_name = university
+                    storage.room_number = room
+                    storage.storage_unit = storage_unit
+                    storage.shelf = shelf
+                    storage.rack = rack
+                    storage.box = storage_data.get('box')
+                    storage.unit_type = storage_data.get('unit_type')
+                    storage.save()
+                    print("Existing storage updated", storage.id)
+                else:
+                    print("No existing sample found, creating new storage")
+                    # Create new storage
+                    storage = Storage.objects.create(
+                        university_name=university,
+                        room_number=room,
+                        storage_unit=storage_unit,
+                        shelf=shelf,
+                        rack=rack,
+                        **storage_data
+                    )
+                    print("New storage created", storage.id)
+                
                 sample_data['storage_id'] = storage
             
             except (University.DoesNotExist, Room.DoesNotExist, StorageUnit.DoesNotExist, Shelf.DoesNotExist, Rack.DoesNotExist) as e:
                 # Handle the case where any of the objects do not exist
                 messages.warning(request, f"One or more related objects do not exist: {e}")
         else:
-            messages.warning(request, "Skipping processing due to empty values in storage_data.")
+            # Check if storage previously existed and remove it if it did
+            if existing_sample and hasattr(existing_sample, 'storage_id') and existing_sample.storage_id:
+                storage_id = existing_sample.storage_id.id
+                # We need to set storage_id to None before deleting to avoid cascade delete of the sample
+                existing_sample.storage_id = None
+                existing_sample.save()
+                # Now delete the storage
+                Storage.objects.filter(id=storage_id).delete()
+                messages.warning(request, f"Storage data was empty for sample {sample_id}. Previous storage (ID: {storage_id}) has been deleted.")
+                print(f"Previous storage (ID: {storage_id}) deleted for sample {sample_id}")
+                # Ensure sample_data doesn't have storage_id
+                if 'storage_id' in sample_data:
+                    sample_data.pop('storage_id')
+            else:
+                messages.warning(request, f"Storage data was empty for sample {sample_id}. No previous storage found to delete.")
+                print(f"No storage found for sample {sample_id}, skipping storage processing")
 
         # Handle foreign keys for OrganismType and UserProfile
         sample_data = handle_foreign_data(sample_data, 'organism_type', OrganismType, field='organism_type')
-        sample_data = handle_foreign_data(sample_data, 'owner', UserProfile, field='first_last_name')
+        sample_data = handle_foreign_data(sample_data, 'owner', UserProfile, field='user_short')
         sample_data = handle_foreign_data(sample_data, 'status_physical', PhysicalStatus, field='name')
         
-        # Create or update Sample object
-        sample_id = sample_data.pop('id')  # Assuming ID is a required field
         sample, created = Sample.objects.update_or_create(id=sample_id, defaults=sample_data)
     messages.success(request, 'Import completed successfully.')
 
