@@ -54,6 +54,20 @@ class DynamicForm(forms.Form):
                     if None not in choice and choice[1] not in seen:
                         seen.add(choice[1])
                         choices.append(choice)
+                
+                choice_keys = [choice[0] for choice in choices]
+                # For correctly setting the initial value for choice fields
+                if choice_keys and field_kwargs['initial'] is not None:
+                    if isinstance(field_kwargs['initial'], list):
+                        for initial_value in field_kwargs['initial']:
+                            if initial_value and initial_value not in choice_keys:
+                                field_kwargs['initial'] = None
+                                self.initial_values[mapping.variable_name] = None
+                    else:
+                        # check this str to int conversion
+                        if field_kwargs['initial'] and field_kwargs['initial'] not in choice_keys:
+                            field_kwargs['initial'] = None
+                            self.initial_values[mapping.variable_name] = None
 
                 # Prepend the placeholder option
                 if not field_kwargs['initial']:
@@ -69,8 +83,9 @@ class DynamicForm(forms.Form):
                         **field_kwargs, widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
                     )
                 elif mapping.field_type == 'select':
-                    if self.initial_values:
-                        current_value = self.initial_values.get(mapping.variable_name, None)
+                    if "initial" in field_kwargs and field_kwargs["initial"]:
+                        print(f"Initial values for {mapping.variable_name}: {field_kwargs['initial']}")
+                        current_value = field_kwargs["initial"]
                         if current_value:
                             if hasattr(current_value, 'pk'):
                                 field_kwargs["initial"] = current_value.pk

@@ -167,6 +167,9 @@ def handle_foreign_data(data, var, model, field='id'):
 def sample_edit(request, sample_id):
     sample = get_object_or_404(Sample, id=sample_id)
     initial_values = {field.name: getattr(sample, field.name) for field in sample._meta.fields}
+    for key, value in initial_values.items():
+        if hasattr(value, 'id'):
+            initial_values[key] = value.id
     form_group = 'sample_form'
     # set initial_values and send it to form
     if request.method == 'GET':
@@ -182,7 +185,7 @@ def sample_edit(request, sample_id):
                 data[m.variable_name] = form.cleaned_data.get(m.variable_name)
             #Handle foreign data
             data = handle_foreign_data(data, 'organism_type', OrganismType)
-            data = handle_foreign_data(data, 'owner', UserProfile, field='auth_user__username')
+            data = handle_foreign_data(data, 'owner', UserProfile)
             data = handle_foreign_data(data, 'status_physical', PhysicalStatus)
                 
             data['id'] = sample.id
@@ -1014,7 +1017,8 @@ def form_view(request, form_group):
         }
     }
     if request.method == 'POST':
-        form = DynamicForm(request.POST, request.FILES, form_group=form_group)
+        filter_kwargs = set_filtered_dropdown(request, form_group)
+        form = DynamicForm(request.POST, request.FILES, form_group=form_group, filter_kwargs=filter_kwargs)
         if form.is_valid():
             if form_group in form_group_mapping:
                 mapping = form_group_mapping[form_group]
