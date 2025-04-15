@@ -112,9 +112,11 @@
             <br/>
             <br/>
             <div class="d-flex gap-2 align-items-center">
+                {% if request.user.is_staff %}
                 <button type="submit" name="action" value="add_bulk_storage" class="btn btn-primary">
                     Add Bulk Storage Details
                 </button>
+                {% endif %}
                 <div class="dropdown">
                     <button class="btn btn-secondary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                         Export Data
@@ -134,9 +136,11 @@
                 <button type="submit" class="btn btn-primary" onclick="location.href='{% url 'download_excel_template' %}';">
                     Download Excel Template
                 </button>
+                {% if request.user.is_staff %}
                 <button type="submit" class="btn btn-primary" onclick="location.href='{% url 'upload_excel' %}';">
                     Import from Excel
                 </button>
+                {% endif %}
             </div>
             {% if request.user.is_staff %}
             <button type="submit" class="btn btn-danger" onclick="location.href='{% url 'delete_samples' %}';">

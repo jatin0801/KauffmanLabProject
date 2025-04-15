@@ -62,11 +62,12 @@ class SampleStorageTable(tables.Table):
         orderable = True
         template_name = 'django_tables2/bootstrap.html'
         # attrs = {'class': 'table table-bordered'}
-        fields = ('selection', 'id', 'labnb_pgno', 'label_note', 'organism_type', 'material_type', 
+        fields = ('selection', 'id', 'labnb_pgno', 'label_note', 'organism_type', 'material_type', 'lab_lotno',
+                  'species', 'strainname_main', 'strainname_core', 'strainname_other',
                   'host_species','host_strain', 'host_id',
-                  'storage_solution', 'lab_lotno', 'owner', 'benchling_link', 'is_sequenced', 
-                  'parent_name', 'general_comments', 'genetic_modifications', 'species', 
-                  'strainname_main', 'strainname_core', 'strainname_other', 'strainname_atcc', 
+                  'storage_solution', 'owner', 'benchling_link', 'is_sequenced', 
+                  'parent_name', 'general_comments', 'genetic_modifications', 
+                  'strainname_atcc', 
                   'strain_link', 'source_name', 'is_purchased', 'source_lotno', 'is_undermta', 
                   'source_recommendedmedia', 'tag', 'status_contamination', 'status_QC', 'status_physical',
                   'shared_with', 'is_protected', 'sequencing_infos', 'plasmids', 'antibiotics',
