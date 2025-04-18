@@ -962,7 +962,7 @@ def process_excel_file(request, excel_file):
 
         # Handle foreign keys for OrganismType and UserProfile
         sample_data = handle_foreign_data(sample_data, 'organism_type', OrganismType, field='organism_type')
-        sample_data = handle_foreign_data(sample_data, 'owner', UserProfile, field='user_short')
+        sample_data = handle_foreign_data(sample_data, 'owner', UserProfile)
         sample_data = handle_foreign_data(sample_data, 'status_physical', PhysicalStatus, field='name')
         
         sample, created = Sample.objects.update_or_create(id=sample_id, defaults=sample_data)
@@ -1053,22 +1053,28 @@ def form_view(request, form_group):
                 if 'id' in request.session:
                     id = request.session.get('id', None)
                     data['id'] = id
-                    save_sample(data, 'single')
+                    success = save_sample(request, data, 'single')
                     clear_session_data(request)
-                    request.session['sample_list'] = [id]
-                    request.session.save()
-                    messages.success(request, f'Sample {id} inserted successfuly')
+                    if success:
+                        request.session['sample_list'] = [id]
+                        request.session.save()
+                        messages.success(request, f'Sample {id} inserted successfuly')
+                    else:
+                        return redirect('/')
                 elif 'start_id' and 'end_id' in request.session:
                     start_id = request.session.get('start_id', None)
                     end_id = request.session.get('end_id', None)
                     data['start_id'] = start_id
                     data['end_id'] = end_id
-                    save_sample(data, 'bulk')
-                    clear_session_data(request)
-                    sample_list =  get_bulk_sample_ids(start_id, end_id)
-                    request.session['sample_list'] = sample_list
-                    request.session.save()
-                    messages.success(request, f'Samples {start_id} to {end_id} inserted successfuly')        
+                    success = save_sample(request, data, 'bulk')
+                    if success:
+                        clear_session_data(request)
+                        sample_list =  get_bulk_sample_ids(start_id, end_id)
+                        request.session['sample_list'] = sample_list
+                        request.session.save()
+                        messages.success(request, f'Samples {start_id} to {end_id} inserted successfuly')
+                    else:
+                        return redirect('/')       
                 
                 return redirect('form_view', form_group='storage_samples')
                 # return redirect('sample_list')
@@ -1121,24 +1127,43 @@ def get_form_header(form_group):
     form_header = ' '.join([part.title() for part in form_group.split('_')])
     return form_header
 
-def save_sample(data, save_sample_type):
-
+def save_sample(request, data, save_sample_type):
+    success = True
     data = handle_foreign_data(data, 'organism_type', OrganismType)
-    data = handle_foreign_data(data, 'owner', UserProfile, field='auth_user__username')
+    data = handle_foreign_data(data, 'owner', UserProfile)
     data = handle_foreign_data(data, 'status_physical', PhysicalStatus)
     
     if save_sample_type == 'single':
-        new_sample = Sample(**data)
-        new_sample.save()
+        if 'id' in data and Sample.objects.filter(id=data['id']).exists():
+            messages.error(request, f"Sample with ID {data['id']} already exists")
+            success = False
+        else:
+            new_sample = Sample(**data)
+            new_sample.save()
     
     if save_sample_type == 'bulk':
         start_id = data.pop('start_id')
         end_id = data.pop('end_id')
         sample_ids = get_bulk_sample_ids(start_id, end_id)
-        for s in sample_ids:
-            data['id'] = s
-            new_sample = Sample(**data)
-            new_sample.save()
+       
+        # Check if any ID in the range already exists
+        existing_ids = []
+        for s_id in sample_ids:
+            if Sample.objects.filter(id=s_id).exists():
+                existing_ids.append(s_id)
+        
+        if existing_ids:
+            error_msg = f"Cannot create samples. The following IDs already exist: {', '.join(map(str, existing_ids))}"
+            messages.error(request, error_msg)
+            success = False
+        else:
+            # Create new samples
+            for s in sample_ids:
+                data['id'] = s
+                new_sample = Sample(**data)
+                new_sample.save()
+    
+    return success
 
 def get_storage_data_from_session(request):
     storage_data = {}
